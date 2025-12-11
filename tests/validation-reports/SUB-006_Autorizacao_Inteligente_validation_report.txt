@@ -1,0 +1,32 @@
+BPMN VALIDATION REPORT
+======================
+File: SUB-006_Autorizacao_Inteligente.bpmn
+Date: Thu Dec 11 13:11:33 -03 2025
+
+VALIDATION 1: Visual Completeness
+====================================
+Process elements count: 32
+Diagram elements count: 0
+Status: FAIL - Missing 32 diagram elements
+
+VALIDATION 2: XML Well-Formed
+==============================
+Status: PASS - XML is well-formed
+
+VALIDATION 3: References Intact
+================================
+DMN Decision References: 2
+Delegate Expressions: 6
+External Tasks: 2
+Status: PASS - All references preserved
+
+VALIDATION 4: Valid Coordinates
+===============================
+Status: PASS - All coordinates are valid
+Bounds check: PASS - All coordinates within bounds
+
+VALIDATION 5: Final Summary
+===========================
+OVERALL STATUS: ✗ FAILED
+
+Report saved to: /Users/rodrigo/claude-projects/Experiencia_Digital_Cliente/Experiencia_Digital_Cliente/tests/validation-reports/SUB-006_Autorizacao_Inteligente_validation_report.txt

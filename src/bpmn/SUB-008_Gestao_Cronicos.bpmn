@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SUB008"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.0.0">
+
+  <bpmn:signal id="Signal_ElegivelPrograma" name="Signal_ElegivelPrograma"/>
+  <bpmn:signal id="Signal_DescompensacaoCritica" name="Signal_DescompensacaoCritica"/>
+  <bpmn:message id="Msg_MarcadorRecebido" name="Msg_MarcadorRecebido"/>
+
+  <bpmn:process id="SUB-008_Gestao_Cronicos" name="SUB-008: Gestão de Crônicos e Alto Risco"
+                isExecutable="true" camunda:historyTimeToLive="1095" camunda:versionTag="2.0">
+
+    <bpmn:startEvent id="StartEvent_ElegivelPrograma" name="Elegível Programa">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_ElegivelPrograma"/>
+    </bpmn:startEvent>
+
+    <bpmn:businessRuleTask id="Task_EstratificarRisco" name="Estratificar Risco da Condição"
+                           camunda:resultVariable="estratificacaoRisco"
+                           camunda:decisionRef="DMN_EstratificacaoRiscoCronico">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:exclusiveGateway id="Gateway_TipoPrograma" name="Tipo de Programa?">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03_Diabetes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_04_Hipertensao</bpmn:outgoing>
+      <bpmn:outgoing>Flow_05_DPOC</bpmn:outgoing>
+      <bpmn:outgoing>Flow_06_Outros</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:callActivity id="CallActivity_Diabetes" name="Programa Diabetes"
+                       calledElement="SUB-008-001_Programa_Diabetes">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:out source="programaId" target="programaId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03_Diabetes</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:callActivity id="CallActivity_Hipertensao" name="Programa Hipertensão"
+                       calledElement="SUB-008-002_Programa_Hipertensao">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:out source="programaId" target="programaId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_04_Hipertensao</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:callActivity id="CallActivity_DPOC" name="Programa DPOC"
+                       calledElement="SUB-008-003_Programa_DPOC">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:out source="programaId" target="programaId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_05_DPOC</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:serviceTask id="Task_CriarProgramaGenerico" name="Criar Programa Genérico"
+                      camunda:delegateExpression="${programaCronicoService.criarGenerico}">
+      <bpmn:incoming>Flow_06_Outros</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_DefinirMetasTerapeuticas" name="Definir Metas Terapêuticas"
+                      camunda:delegateExpression="${programaCronicoService.definirMetas}">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_AgendarContatoInicial" name="Agendar Contato Inicial"
+                      camunda:delegateExpression="${programaCronicoService.agendarContatoInicial}">
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:subProcess id="SubProcess_MonitoramentoContinuo" name="Monitoramento Contínuo">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartMonit" name="Iniciar Monitoramento">
+        <bpmn:outgoing>FlowMonit_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:intermediateCatchEvent id="Event_TimerContato" name="Próximo Contato">
+        <bpmn:incoming>FlowMonit_01</bpmn:incoming>
+        <bpmn:incoming>FlowMonit_08</bpmn:incoming>
+        <bpmn:outgoing>FlowMonit_02</bpmn:outgoing>
+        <bpmn:timerEventDefinition>
+          <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">${frequenciaContato}</bpmn:timeCycle>
+        </bpmn:timerEventDefinition>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:userTask id="UserTask_ContatoEnfermagem" name="Contato de Enfermagem"
+                     camunda:candidateGroups="enfermeiras_navegadoras">
+        <bpmn:incoming>FlowMonit_02</bpmn:incoming>
+        <bpmn:outgoing>FlowMonit_03</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:receiveTask id="Task_ReceberMarcadores" name="Receber Marcadores Clínicos"
+                        messageRef="Msg_MarcadorRecebido">
+        <bpmn:incoming>FlowMonit_03</bpmn:incoming>
+        <bpmn:outgoing>FlowMonit_04</bpmn:outgoing>
+      </bpmn:receiveTask>
+
+      <bpmn:serviceTask id="Task_AvaliarAdesao" name="Avaliar Taxa de Adesão"
+                        camunda:delegateExpression="${programaCronicoService.avaliarAdesao}">
+        <bpmn:incoming>FlowMonit_04</bpmn:incoming>
+        <bpmn:outgoing>FlowMonit_05</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:exclusiveGateway id="Gateway_DescompensacaoDetectada" name="Descompensação Detectada?">
+        <bpmn:incoming>FlowMonit_05</bpmn:incoming>
+        <bpmn:outgoing>FlowMonit_06_Sim</bpmn:outgoing>
+        <bpmn:outgoing>FlowMonit_07_Nao</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:intermediateThrowEvent id="Event_DescompensacaoCritica" name="Signal: Descompensação Crítica">
+        <bpmn:incoming>FlowMonit_06_Sim</bpmn:incoming>
+        <bpmn:signalEventDefinition signalRef="Signal_DescompensacaoCritica"/>
+      </bpmn:intermediateThrowEvent>
+
+      <bpmn:sequenceFlow id="FlowMonit_01" sourceRef="StartMonit" targetRef="Event_TimerContato"/>
+      <bpmn:sequenceFlow id="FlowMonit_02" sourceRef="Event_TimerContato" targetRef="UserTask_ContatoEnfermagem"/>
+      <bpmn:sequenceFlow id="FlowMonit_03" sourceRef="UserTask_ContatoEnfermagem" targetRef="Task_ReceberMarcadores"/>
+      <bpmn:sequenceFlow id="FlowMonit_04" sourceRef="Task_ReceberMarcadores" targetRef="Task_AvaliarAdesao"/>
+      <bpmn:sequenceFlow id="FlowMonit_05" sourceRef="Task_AvaliarAdesao" targetRef="Gateway_DescompensacaoDetectada"/>
+      <bpmn:sequenceFlow id="FlowMonit_06_Sim" name="SIM" sourceRef="Gateway_DescompensacaoDetectada" targetRef="Event_DescompensacaoCritica">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${descompensacaoDetectada == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowMonit_07_Nao" name="NÃO" sourceRef="Gateway_DescompensacaoDetectada" targetRef="Event_TimerContato">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${descompensacaoDetectada == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowMonit_08" sourceRef="Event_DescompensacaoCritica" targetRef="Event_TimerContato"/>
+    </bpmn:subProcess>
+
+    <bpmn:serviceTask id="Task_ConsolidarResultados" name="Consolidar Resultados do Programa"
+                      camunda:delegateExpression="${programaCronicoService.consolidarResultados}">
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_ProgramaAtivo" name="Programa Ativo">
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_ElegivelPrograma" targetRef="Task_EstratificarRisco"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_EstratificarRisco" targetRef="Gateway_TipoPrograma"/>
+    <bpmn:sequenceFlow id="Flow_03_Diabetes" name="Diabetes" sourceRef="Gateway_TipoPrograma" targetRef="CallActivity_Diabetes">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tipoPrograma == 'DIABETES'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_04_Hipertensao" name="Hipertensão" sourceRef="Gateway_TipoPrograma" targetRef="CallActivity_Hipertensao">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tipoPrograma == 'HIPERTENSAO'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_05_DPOC" name="DPOC" sourceRef="Gateway_TipoPrograma" targetRef="CallActivity_DPOC">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tipoPrograma == 'DPOC'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_06_Outros" name="Outros" sourceRef="Gateway_TipoPrograma" targetRef="Task_CriarProgramaGenerico">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tipoPrograma != 'DIABETES' &amp;&amp; tipoPrograma != 'HIPERTENSAO' &amp;&amp; tipoPrograma != 'DPOC'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="CallActivity_Diabetes" targetRef="Task_DefinirMetasTerapeuticas"/>
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="CallActivity_Hipertensao" targetRef="Task_DefinirMetasTerapeuticas"/>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="CallActivity_DPOC" targetRef="Task_DefinirMetasTerapeuticas"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_CriarProgramaGenerico" targetRef="Task_DefinirMetasTerapeuticas"/>
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_DefinirMetasTerapeuticas" targetRef="Task_AgendarContatoInicial"/>
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_AgendarContatoInicial" targetRef="SubProcess_MonitoramentoContinuo"/>
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="SubProcess_MonitoramentoContinuo" targetRef="Task_ConsolidarResultados"/>
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_ConsolidarResultados" targetRef="EndEvent_ProgramaAtivo"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB008">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB008" bpmnElement="SUB-008_Gestao_Cronicos">
+
+      <!-- Main Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_ElegivelPrograma_di" bpmnElement="StartEvent_ElegivelPrograma">
+        <dc:Bounds x="172" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="148" y="145" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EstratificarRisco_di" bpmnElement="Task_EstratificarRisco">
+        <dc:Bounds x="280" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_TipoPrograma_di" bpmnElement="Gateway_TipoPrograma">
+        <dc:Bounds x="455" y="95" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Diabetes_di" bpmnElement="CallActivity_Diabetes">
+        <dc:Bounds x="590" y="30" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Hipertensao_di" bpmnElement="CallActivity_Hipertensao">
+        <dc:Bounds x="590" y="140" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_DPOC_di" bpmnElement="CallActivity_DPOC">
+        <dc:Bounds x="590" y="250" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CriarProgramaGenerico_di" bpmnElement="Task_CriarProgramaGenerico">
+        <dc:Bounds x="590" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_DefinirMetasTerapeuticas_di" bpmnElement="Task_DefinirMetasTerapeuticas">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AgendarContatoInicial_di" bpmnElement="Task_AgendarContatoInicial">
+        <dc:Bounds x="980" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- SubProcess: Monitoramento Contínuo -->
+      <bpmndi:BPMNShape id="SubProcess_MonitoramentoContinuo_di" bpmnElement="SubProcess_MonitoramentoContinuo" isExpanded="true">
+        <dc:Bounds x="160" y="550" width="1000" height="300"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartMonit_di" bpmnElement="StartMonit">
+        <dc:Bounds x="200" y="682" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_TimerContato_di" bpmnElement="Event_TimerContato">
+        <dc:Bounds x="292" y="682" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_ContatoEnfermagem_di" bpmnElement="UserTask_ContatoEnfermagem">
+        <dc:Bounds x="390" y="660" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ReceberMarcadores_di" bpmnElement="Task_ReceberMarcadores">
+        <dc:Bounds x="550" y="660" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AvaliarAdesao_di" bpmnElement="Task_AvaliarAdesao">
+        <dc:Bounds x="710" y="660" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_DescompensacaoDetectada_di" bpmnElement="Gateway_DescompensacaoDetectada">
+        <dc:Bounds x="875" y="675" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_DescompensacaoCritica_di" bpmnElement="Event_DescompensacaoCritica">
+        <dc:Bounds x="1002" y="682" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConsolidarResultados_di" bpmnElement="Task_ConsolidarResultados">
+        <dc:Bounds x="1250" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_ProgramaAtivo_di" bpmnElement="EndEvent_ProgramaAtivo">
+        <dc:Bounds x="1432" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Flow Edges -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="208" y="120"/>
+        <di:waypoint x="280" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="380" y="120"/>
+        <di:waypoint x="455" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_Diabetes_di" bpmnElement="Flow_03_Diabetes">
+        <di:waypoint x="480" y="95"/>
+        <di:waypoint x="480" y="75"/>
+        <di:waypoint x="590" y="75"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_Hipertensao_di" bpmnElement="Flow_04_Hipertensao">
+        <di:waypoint x="505" y="120"/>
+        <di:waypoint x="548" y="120"/>
+        <di:waypoint x="548" y="185"/>
+        <di:waypoint x="590" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_DPOC_di" bpmnElement="Flow_05_DPOC">
+        <di:waypoint x="480" y="145"/>
+        <di:waypoint x="480" y="295"/>
+        <di:waypoint x="590" y="295"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_06_Outros_di" bpmnElement="Flow_06_Outros">
+        <di:waypoint x="480" y="145"/>
+        <di:waypoint x="480" y="400"/>
+        <di:waypoint x="590" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="720" y="75"/>
+        <di:waypoint x="850" y="75"/>
+        <di:waypoint x="850" y="80"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="720" y="185"/>
+        <di:waypoint x="850" y="185"/>
+        <di:waypoint x="850" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="720" y="295"/>
+        <di:waypoint x="850" y="295"/>
+        <di:waypoint x="850" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="690" y="400"/>
+        <di:waypoint x="850" y="400"/>
+        <di:waypoint x="850" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="980" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1080" y="120"/>
+        <di:waypoint x="1120" y="120"/>
+        <di:waypoint x="1120" y="550"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="1120" y="850"/>
+        <di:waypoint x="1120" y="900"/>
+        <di:waypoint x="1300" y="900"/>
+        <di:waypoint x="1300" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14">
+        <di:waypoint x="1350" y="120"/>
+        <di:waypoint x="1432" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Edges -->
+      <bpmndi:BPMNEdge id="FlowMonit_01_di" bpmnElement="FlowMonit_01">
+        <di:waypoint x="236" y="700"/>
+        <di:waypoint x="292" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_02_di" bpmnElement="FlowMonit_02">
+        <di:waypoint x="328" y="700"/>
+        <di:waypoint x="390" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_03_di" bpmnElement="FlowMonit_03">
+        <di:waypoint x="490" y="700"/>
+        <di:waypoint x="550" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_04_di" bpmnElement="FlowMonit_04">
+        <di:waypoint x="650" y="700"/>
+        <di:waypoint x="710" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_05_di" bpmnElement="FlowMonit_05">
+        <di:waypoint x="810" y="700"/>
+        <di:waypoint x="875" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_06_Sim_di" bpmnElement="FlowMonit_06_Sim">
+        <di:waypoint x="925" y="700"/>
+        <di:waypoint x="1002" y="700"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_07_Nao_di" bpmnElement="FlowMonit_07_Nao">
+        <di:waypoint x="900" y="725"/>
+        <di:waypoint x="900" y="780"/>
+        <di:waypoint x="310" y="780"/>
+        <di:waypoint x="310" y="718"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowMonit_08_di" bpmnElement="FlowMonit_08">
+        <di:waypoint x="1020" y="718"/>
+        <di:waypoint x="1020" y="800"/>
+        <di:waypoint x="310" y="800"/>
+        <di:waypoint x="310" y="718"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

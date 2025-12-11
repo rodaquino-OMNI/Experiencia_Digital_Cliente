@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SUB007"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.0.0">
+
+  <bpmn:signal id="Signal_CasoParaNavegacao" name="Signal_CasoParaNavegacao"/>
+  <bpmn:signal id="Signal_JornadaConcluida" name="Signal_JornadaConcluida"/>
+  <bpmn:message id="Msg_SolicitacaoAutorizacao" name="Msg_SolicitacaoAutorizacao"/>
+
+  <bpmn:process id="SUB-007_Navegacao_Cuidado" name="SUB-007: Navegação e Coordenação do Cuidado"
+                isExecutable="true" camunda:historyTimeToLive="730" camunda:versionTag="2.0">
+
+    <bpmn:startEvent id="StartEvent_CasoNavegacao" name="Caso para Navegação">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_CasoParaNavegacao"/>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_AvaliarComplexidade" name="Avaliar Complexidade do Caso"
+                      camunda:delegateExpression="${navegacaoService.avaliarComplexidade}">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_AtribuirNavegador" name="Atribuir Navegador"
+                   camunda:candidateGroups="gestores_navegacao"
+                   camunda:formKey="form_atribuir_navegador">
+      <bpmn:extensionElements>
+        <camunda:taskListener event="create">
+          <camunda:field name="sla">
+            <camunda:string>PT2H</camunda:string>
+          </camunda:field>
+        </camunda:taskListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="UserTask_CriarPlanoCuidados" name="Criar Plano de Cuidados Individualizado"
+                   camunda:candidateGroups="navegadores"
+                   camunda:assignee="${navegadorId}"
+                   camunda:formKey="form_plano_cuidados">
+      <bpmn:extensionElements>
+        <camunda:taskListener event="create">
+          <camunda:field name="sla">
+            <camunda:string>PT48H</camunda:string>
+          </camunda:field>
+        </camunda:taskListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_ValidarPlano" name="Validar Plano de Cuidados"
+                      camunda:delegateExpression="${planoCuidadosService.validar}">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:subProcess id="SubProcess_ExecutarJornada" name="Executar Jornada de Cuidado">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${planoCuidados.etapas.size()}</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <bpmn:startEvent id="StartEtapa" name="Iniciar Etapa">
+        <bpmn:outgoing>FlowEtapa_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:userTask id="UserTask_ExecutarEtapa" name="Executar Etapa do Plano"
+                     camunda:candidateGroups="navegadores"
+                     camunda:assignee="${navegadorId}">
+        <bpmn:incoming>FlowEtapa_01</bpmn:incoming>
+        <bpmn:outgoing>FlowEtapa_02</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:exclusiveGateway id="Gateway_RequerAutorizacao" name="Etapa Requer Autorização?">
+        <bpmn:incoming>FlowEtapa_02</bpmn:incoming>
+        <bpmn:outgoing>FlowEtapa_03_Sim</bpmn:outgoing>
+        <bpmn:outgoing>FlowEtapa_04_Nao</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:callActivity id="CallActivity_SUB006" name="SUB-006: Autorização"
+                         calledElement="SUB-006_Autorizacao_Inteligente">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+          <camunda:in source="autorizacaoRequest" target="autorizacaoRequest"/>
+          <camunda:out source="autorizacaoId" target="autorizacaoId"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowEtapa_03_Sim</bpmn:incoming>
+        <bpmn:outgoing>FlowEtapa_05</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:serviceTask id="Task_RegistrarEtapa" name="Registrar Conclusão da Etapa"
+                        camunda:delegateExpression="${jornadaService.registrarEtapa}">
+        <bpmn:incoming>FlowEtapa_04_Nao</bpmn:incoming>
+        <bpmn:incoming>FlowEtapa_05</bpmn:incoming>
+        <bpmn:outgoing>FlowEtapa_06</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEtapa" name="Etapa Concluída">
+        <bpmn:incoming>FlowEtapa_06</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="FlowEtapa_01" sourceRef="StartEtapa" targetRef="UserTask_ExecutarEtapa"/>
+      <bpmn:sequenceFlow id="FlowEtapa_02" sourceRef="UserTask_ExecutarEtapa" targetRef="Gateway_RequerAutorizacao"/>
+      <bpmn:sequenceFlow id="FlowEtapa_03_Sim" name="SIM" sourceRef="Gateway_RequerAutorizacao" targetRef="CallActivity_SUB006">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${etapaRequerAutorizacao == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowEtapa_04_Nao" name="NÃO" sourceRef="Gateway_RequerAutorizacao" targetRef="Task_RegistrarEtapa">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${etapaRequerAutorizacao == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowEtapa_05" sourceRef="CallActivity_SUB006" targetRef="Task_RegistrarEtapa"/>
+      <bpmn:sequenceFlow id="FlowEtapa_06" sourceRef="Task_RegistrarEtapa" targetRef="EndEtapa"/>
+    </bpmn:subProcess>
+
+    <bpmn:callActivity id="CallActivity_SUB010" name="SUB-010: Follow-up e Feedback"
+                       calledElement="SUB-010_Follow_Up_Feedback">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:in source="jornadaId" target="jornadaId"/>
+        <camunda:out source="nps" target="nps"/>
+        <camunda:out source="feedbackQualitativo" target="feedbackQualitativo"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:serviceTask id="Task_ConsolidarDesfechos" name="Consolidar Desfechos Clínicos"
+                      camunda:delegateExpression="${jornadaService.consolidarDesfechos}">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_AtualizarDataLake" name="Atualizar Data Lake"
+                      camunda:delegateExpression="${dataLakeService.atualizarJornada}">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateThrowEvent id="Event_JornadaConcluida" name="Signal: JornadaConcluida">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_JornadaConcluida"/>
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="EndEvent_JornadaConcluida" name="Jornada Concluída">
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_CasoNavegacao" targetRef="Task_AvaliarComplexidade"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_AvaliarComplexidade" targetRef="UserTask_AtribuirNavegador"/>
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="UserTask_AtribuirNavegador" targetRef="UserTask_CriarPlanoCuidados"/>
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="UserTask_CriarPlanoCuidados" targetRef="Task_ValidarPlano"/>
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_ValidarPlano" targetRef="SubProcess_ExecutarJornada"/>
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="SubProcess_ExecutarJornada" targetRef="CallActivity_SUB010"/>
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="CallActivity_SUB010" targetRef="Task_ConsolidarDesfechos"/>
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_ConsolidarDesfechos" targetRef="Task_AtualizarDataLake"/>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_AtualizarDataLake" targetRef="Event_JornadaConcluida"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Event_JornadaConcluida" targetRef="EndEvent_JornadaConcluida"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB007">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB007" bpmnElement="SUB-007_Navegacao_Cuidado">
+
+      <!-- Main Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_CasoNavegacao_di" bpmnElement="StartEvent_CasoNavegacao">
+        <dc:Bounds x="172" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="148" y="145" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AvaliarComplexidade_di" bpmnElement="Task_AvaliarComplexidade">
+        <dc:Bounds x="280" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_AtribuirNavegador_di" bpmnElement="UserTask_AtribuirNavegador">
+        <dc:Bounds x="450" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_CriarPlanoCuidados_di" bpmnElement="UserTask_CriarPlanoCuidados">
+        <dc:Bounds x="620" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ValidarPlano_di" bpmnElement="Task_ValidarPlano">
+        <dc:Bounds x="790" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- SubProcess: Executar Jornada -->
+      <bpmndi:BPMNShape id="SubProcess_ExecutarJornada_di" bpmnElement="SubProcess_ExecutarJornada" isExpanded="true">
+        <dc:Bounds x="160" y="250" width="800" height="300"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEtapa_di" bpmnElement="StartEtapa">
+        <dc:Bounds x="200" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_ExecutarEtapa_di" bpmnElement="UserTask_ExecutarEtapa">
+        <dc:Bounds x="290" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_RequerAutorizacao_di" bpmnElement="Gateway_RequerAutorizacao">
+        <dc:Bounds x="445" y="375" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB006_di" bpmnElement="CallActivity_SUB006">
+        <dc:Bounds x="560" y="300" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegistrarEtapa_di" bpmnElement="Task_RegistrarEtapa">
+        <dc:Bounds x="730" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEtapa_di" bpmnElement="EndEtapa">
+        <dc:Bounds x="882" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB010_di" bpmnElement="CallActivity_SUB010">
+        <dc:Bounds x="1050" y="80" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConsolidarDesfechos_di" bpmnElement="Task_ConsolidarDesfechos">
+        <dc:Bounds x="1250" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarDataLake_di" bpmnElement="Task_AtualizarDataLake">
+        <dc:Bounds x="1420" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_JornadaConcluida_di" bpmnElement="Event_JornadaConcluida">
+        <dc:Bounds x="1592" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_JornadaConcluida_di" bpmnElement="EndEvent_JornadaConcluida">
+        <dc:Bounds x="1702" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Flow Edges -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="208" y="120"/>
+        <di:waypoint x="280" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="380" y="120"/>
+        <di:waypoint x="450" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="550" y="120"/>
+        <di:waypoint x="620" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="720" y="120"/>
+        <di:waypoint x="790" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="890" y="120"/>
+        <di:waypoint x="920" y="120"/>
+        <di:waypoint x="920" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="920" y="550"/>
+        <di:waypoint x="920" y="600"/>
+        <di:waypoint x="1115" y="600"/>
+        <di:waypoint x="1115" y="170"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="1180" y="125"/>
+        <di:waypoint x="1250" y="125"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="1350" y="120"/>
+        <di:waypoint x="1420" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1520" y="120"/>
+        <di:waypoint x="1592" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1628" y="120"/>
+        <di:waypoint x="1702" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Edges -->
+      <bpmndi:BPMNEdge id="FlowEtapa_01_di" bpmnElement="FlowEtapa_01">
+        <di:waypoint x="236" y="400"/>
+        <di:waypoint x="290" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowEtapa_02_di" bpmnElement="FlowEtapa_02">
+        <di:waypoint x="390" y="400"/>
+        <di:waypoint x="445" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowEtapa_03_Sim_di" bpmnElement="FlowEtapa_03_Sim">
+        <di:waypoint x="470" y="375"/>
+        <di:waypoint x="470" y="345"/>
+        <di:waypoint x="560" y="345"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowEtapa_04_Nao_di" bpmnElement="FlowEtapa_04_Nao">
+        <di:waypoint x="495" y="400"/>
+        <di:waypoint x="730" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowEtapa_05_di" bpmnElement="FlowEtapa_05">
+        <di:waypoint x="690" y="345"/>
+        <di:waypoint x="780" y="345"/>
+        <di:waypoint x="780" y="360"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowEtapa_06_di" bpmnElement="FlowEtapa_06">
+        <di:waypoint x="830" y="400"/>
+        <di:waypoint x="882" y="400"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

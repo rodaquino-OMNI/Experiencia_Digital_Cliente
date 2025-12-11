@@ -1,0 +1,996 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SUB001"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:message id="Msg_NovaAdesaoConfirmada" name="Msg_NovaAdesaoConfirmada"/>
+  <bpmn:message id="Msg_BoasVindas" name="Msg_BoasVindas"/>
+  <bpmn:message id="Msg_AceiteBeneficiario" name="Msg_AceiteBeneficiario"/>
+  <bpmn:message id="Msg_RespostaBeneficiario" name="Msg_RespostaBeneficiario"/>
+  <bpmn:message id="Msg_DocumentoUpload" name="Msg_DocumentoUpload"/>
+  <bpmn:message id="Msg_OnboardingCompletoBeneficiario" name="Msg_OnboardingCompletoBeneficiario"/>
+
+  <bpmn:signal id="Signal_ElegivelProgramaCronico" name="Signal_ElegivelProgramaCronico"/>
+  <bpmn:signal id="Signal_OnboardingConcluido" name="Signal_OnboardingConcluido"/>
+
+  <bpmn:error id="Error_TasyIndisponivel" errorCode="ERR_TASY_INDISPONIVEL" name="Tasy Indisponível"/>
+
+  <bpmn:process id="SUB-001_Onboarding_Screening" name="SUB-001: Onboarding Inteligente e Screening"
+                isExecutable="true" camunda:historyTimeToLive="365" camunda:versionTag="2.0">
+
+    <bpmn:extensionElements>
+      <camunda:properties>
+        <camunda:property name="slaGlobal" value="P7D"/>
+      </camunda:properties>
+    </bpmn:extensionElements>
+
+    <!-- START Event -->
+    <bpmn:startEvent id="StartEvent_NovaAdesao" name="Nova Adesão Confirmada">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_NovaAdesaoConfirmada"/>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Criar Registro no Tasy -->
+    <bpmn:serviceTask id="Task_CriarRegistroTasy" name="Criar Registro no Tasy"
+                      camunda:delegateExpression="${tasyBeneficiarioService.criar}"
+                      camunda:asyncBefore="true">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dadosCadastrais">${dadosCadastrais}</camunda:inputParameter>
+          <camunda:outputParameter name="beneficiarioTasyId">${beneficiarioTasyId}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:failedJobRetryTimeCycle>R3/PT1M</camunda:failedJobRetryTimeCycle>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Boundary Error: Tasy Indisponível -->
+    <bpmn:boundaryEvent id="BoundaryError_TasyIndisponivel" name="Tasy Indisponível"
+                        attachedToRef="Task_CriarRegistroTasy">
+      <bpmn:outgoing>Flow_Error_01</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_TasyIndisponivel"/>
+    </bpmn:boundaryEvent>
+
+    <bpmn:subProcess id="SubProcess_RetryBackoff" name="Retry com Backoff">
+      <bpmn:incoming>Flow_Error_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Error_02</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartError" name="Erro Capturado">
+        <bpmn:outgoing>FlowRetry_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="TaskRetry" name="Retry Registro Tasy"
+                        camunda:delegateExpression="${tasyBeneficiarioService.criar}">
+        <bpmn:incoming>FlowRetry_01</bpmn:incoming>
+        <bpmn:outgoing>FlowRetry_02</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndRetry" name="Retry Sucesso">
+        <bpmn:incoming>FlowRetry_02</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="FlowRetry_01" sourceRef="StartError" targetRef="TaskRetry"/>
+      <bpmn:sequenceFlow id="FlowRetry_02" sourceRef="TaskRetry" targetRef="EndRetry"/>
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="EndEvent_Error" name="Erro Não Recuperável">
+      <bpmn:incoming>Flow_Error_02</bpmn:incoming>
+      <bpmn:errorEventDefinition/>
+    </bpmn:endEvent>
+
+    <!-- Service Task: Preparar Template Boas-vindas -->
+    <bpmn:serviceTask id="Task_PrepararBoasVindas" name="Preparar Template de Boas-vindas"
+                      camunda:delegateExpression="${templateService.prepararBoasVindas}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="nome">${nome}</camunda:inputParameter>
+          <camunda:inputParameter name="plano">${tipoPlano}</camunda:inputParameter>
+          <camunda:outputParameter name="mensagemPersonalizada">${mensagemPersonalizada}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Send Task: Enviar Boas-vindas via WhatsApp -->
+    <bpmn:sendTask id="Task_EnviarBoasVindas" name="Enviar Boas-vindas via WhatsApp"
+                   messageRef="Msg_BoasVindas"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">boas_vindas_v2</camunda:inputParameter>
+          <camunda:inputParameter name="destinatario">${telefone}</camunda:inputParameter>
+          <camunda:inputParameter name="mensagem">${mensagemPersonalizada}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <!-- Receive Task: Aguardar Aceite -->
+    <bpmn:receiveTask id="Task_AguardarAceite" name="Aguardar Aceite do Beneficiário"
+                      messageRef="Msg_AceiteBeneficiario">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="correlationKey" value="${beneficiarioId},${telefone}"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <!-- Boundary Timer 24h (non-interrupting) -->
+    <bpmn:boundaryEvent id="BoundaryTimer_24h" name="24h" cancelActivity="false"
+                        attachedToRef="Task_AguardarAceite">
+      <bpmn:outgoing>Flow_Reenvio_01</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:sendTask id="Task_ReenviarConvite1" name="Reenviar Convite (1ª tentativa)"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">lembrete_onboarding_v1</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Reenvio_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reenvio_02</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:receiveTask id="Task_AguardarAceite2" name="Aguardar Aceite (2ª tentativa)"
+                      messageRef="Msg_AceiteBeneficiario">
+      <bpmn:incoming>Flow_Reenvio_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reenvio_End</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <!-- Boundary Timer 48h (non-interrupting) -->
+    <bpmn:boundaryEvent id="BoundaryTimer_48h" name="48h" cancelActivity="false"
+                        attachedToRef="Task_AguardarAceite2">
+      <bpmn:outgoing>Flow_Contato_01</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UserTask_ContatoTelefonico" name="Contato Telefônico"
+                   camunda:candidateGroups="atendimento_ativo"
+                   camunda:formKey="form_contato_onboarding">
+      <bpmn:extensionElements>
+        <camunda:taskListener event="create">
+          <camunda:field name="sla">
+            <camunda:string>PT4H</camunda:string>
+          </camunda:field>
+        </camunda:taskListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Contato_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Contato_End</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Boundary Timer 7 dias (interrupting) -->
+    <bpmn:boundaryEvent id="BoundaryTimer_7dias" name="7 dias" cancelActivity="true"
+                        attachedToRef="UserTask_ContatoTelefonico">
+      <bpmn:outgoing>Flow_Timeout_01</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="Task_MarcarIncompleto" name="Marcar como Onboarding Incompleto"
+                      camunda:delegateExpression="${onboardingService.marcarIncompleto}">
+      <bpmn:incoming>Flow_Timeout_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timeout_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_OnboardingNaoConcluido" name="Onboarding Não Concluído">
+      <bpmn:incoming>Flow_Timeout_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Subprocess: Screening Conversacional Gamificado -->
+    <bpmn:subProcess id="SubProcess_Screening" name="Screening Conversacional Gamificado">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:incoming>Flow_Reenvio_End</bpmn:incoming>
+      <bpmn:incoming>Flow_Contato_End</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">5</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <bpmn:startEvent id="StartScreening" name="Iniciar Módulo">
+        <bpmn:outgoing>FlowScreen_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="TaskEnviarPerguntas" name="Enviar Perguntas do Módulo"
+                        camunda:delegateExpression="${screeningService.enviarModulo}">
+        <bpmn:incoming>FlowScreen_01</bpmn:incoming>
+        <bpmn:outgoing>FlowScreen_02</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:receiveTask id="TaskCapturarRespostas" name="Capturar Respostas"
+                        messageRef="Msg_RespostaBeneficiario">
+        <bpmn:incoming>FlowScreen_02</bpmn:incoming>
+        <bpmn:outgoing>FlowScreen_03</bpmn:outgoing>
+      </bpmn:receiveTask>
+
+      <bpmn:boundaryEvent id="BoundaryTimer_30min" name="30 min" cancelActivity="false"
+                          attachedToRef="TaskCapturarRespostas">
+        <bpmn:timerEventDefinition>
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30M</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:boundaryEvent>
+
+      <bpmn:serviceTask id="TaskValidarRespostas" name="Validar e Persistir Respostas"
+                        camunda:delegateExpression="${screeningService.validarRespostas}">
+        <bpmn:incoming>FlowScreen_03</bpmn:incoming>
+        <bpmn:outgoing>FlowScreen_04</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndScreening" name="Módulo Concluído">
+        <bpmn:incoming>FlowScreen_04</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="FlowScreen_01" sourceRef="StartScreening" targetRef="TaskEnviarPerguntas"/>
+      <bpmn:sequenceFlow id="FlowScreen_02" sourceRef="TaskEnviarPerguntas" targetRef="TaskCapturarRespostas"/>
+      <bpmn:sequenceFlow id="FlowScreen_03" sourceRef="TaskCapturarRespostas" targetRef="TaskValidarRespostas"/>
+      <bpmn:sequenceFlow id="FlowScreen_04" sourceRef="TaskValidarRespostas" targetRef="EndScreening"/>
+    </bpmn:subProcess>
+
+    <!-- Parallel Gateway: Fork Análises -->
+    <bpmn:parallelGateway id="Gateway_Fork_Analises" name="Fork - Análises Simultâneas">
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_07_NLP</bpmn:outgoing>
+      <bpmn:outgoing>Flow_08_Documentos</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Service Task: Analisar com NLP -->
+    <bpmn:serviceTask id="Task_AnalisarNLP" name="Analisar Respostas com NLP"
+                      camunda:type="external"
+                      camunda:topic="nlp-health-analyzer">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="respostasScreening">${respostasScreening}</camunda:inputParameter>
+          <camunda:outputParameter name="condicoesDetectadas">${condicoesDetectadas}</camunda:outputParameter>
+          <camunda:outputParameter name="sintomasRelatados">${sintomasRelatados}</camunda:outputParameter>
+          <camunda:outputParameter name="flagsAlerta">${flagsAlerta}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_07_NLP</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Subprocess: Processamento de Documentos -->
+    <bpmn:subProcess id="SubProcess_Documentos" name="Processamento de Documentos">
+      <bpmn:incoming>Flow_08_Documentos</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartDocs" name="Aguardar Docs">
+        <bpmn:outgoing>FlowDoc_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:receiveTask id="TaskAguardarUpload" name="Aguardar Upload de Documentos"
+                        messageRef="Msg_DocumentoUpload">
+        <bpmn:incoming>FlowDoc_01</bpmn:incoming>
+        <bpmn:outgoing>FlowDoc_02</bpmn:outgoing>
+      </bpmn:receiveTask>
+
+      <bpmn:boundaryEvent id="BoundaryTimer_7diasDocs" name="7 dias" cancelActivity="true"
+                          attachedToRef="TaskAguardarUpload">
+        <bpmn:timerEventDefinition>
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:boundaryEvent>
+
+      <bpmn:serviceTask id="TaskProcessarOCR" name="Processar com OCR + Computer Vision"
+                        camunda:type="external"
+                        camunda:topic="ocr-processor">
+        <bpmn:incoming>FlowDoc_02</bpmn:incoming>
+        <bpmn:outgoing>FlowDoc_03</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndDocs" name="Documentos Processados">
+        <bpmn:incoming>FlowDoc_03</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="FlowDoc_01" sourceRef="StartDocs" targetRef="TaskAguardarUpload"/>
+      <bpmn:sequenceFlow id="FlowDoc_02" sourceRef="TaskAguardarUpload" targetRef="TaskProcessarOCR"/>
+      <bpmn:sequenceFlow id="FlowDoc_03" sourceRef="TaskProcessarOCR" targetRef="EndDocs"/>
+    </bpmn:subProcess>
+
+    <!-- Parallel Gateway: Join -->
+    <bpmn:parallelGateway id="Gateway_Join_Analises" name="Join">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Business Rule Task: Estratificação de Risco -->
+    <bpmn:businessRuleTask id="Task_EstratificacaoRisco" name="Estratificação de Risco"
+                           camunda:resultVariable="estratificacaoResult"
+                           camunda:decisionRef="DMN_EstratificacaoRisco"
+                           camunda:mapDecisionResult="singleEntry">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="idade">${idade}</camunda:inputParameter>
+          <camunda:inputParameter name="bmi">${bmi}</camunda:inputParameter>
+          <camunda:inputParameter name="qtdComorbidades">${qtdComorbidades}</camunda:inputParameter>
+          <camunda:outputParameter name="scoreRisco">${estratificacaoResult.scoreRisco}</camunda:outputParameter>
+          <camunda:outputParameter name="classificacaoRisco">${estratificacaoResult.classificacaoRisco}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Business Rule Task: Detecção de CPT -->
+    <bpmn:businessRuleTask id="Task_DeteccaoCPT" name="Detecção de CPT"
+                           camunda:resultVariable="cptResult"
+                           camunda:decisionRef="DMN_DeteccaoCPT"
+                           camunda:mapDecisionResult="singleEntry">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="condicoesDetectadas">${condicoesDetectadas}</camunda:inputParameter>
+          <camunda:outputParameter name="statusCPT">${cptResult.statusCPT}</camunda:outputParameter>
+          <camunda:outputParameter name="nivelConfianca">${cptResult.nivelConfianca}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Exclusive Gateway: CPT Detectado? -->
+    <bpmn:exclusiveGateway id="Gateway_CPTDetectado" name="CPT Detectado com Alta Confiança?">
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14_Sim</bpmn:outgoing>
+      <bpmn:outgoing>Flow_14_Nao</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Subprocess: Investigação de CPT -->
+    <bpmn:subProcess id="SubProcess_InvestigacaoCPT" name="Investigação de CPT">
+      <bpmn:incoming>Flow_14_Sim</bpmn:incoming>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartCPT" name="Iniciar Investigação">
+        <bpmn:outgoing>FlowCPT_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:userTask id="UserTask_ValidacaoCPT" name="Validação Médica de CPT"
+                     camunda:candidateGroups="auditores_medicos"
+                     camunda:formKey="form_validacao_cpt">
+        <bpmn:extensionElements>
+          <camunda:taskListener event="create">
+            <camunda:field name="sla">
+              <camunda:string>PT48H</camunda:string>
+            </camunda:field>
+          </camunda:taskListener>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowCPT_01</bpmn:incoming>
+        <bpmn:outgoing>FlowCPT_02</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:exclusiveGateway id="Gateway_CPTConfirmado" name="CPT Confirmado?">
+        <bpmn:incoming>FlowCPT_02</bpmn:incoming>
+        <bpmn:outgoing>FlowCPT_03_Sim</bpmn:outgoing>
+        <bpmn:outgoing>FlowCPT_04_Nao</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:serviceTask id="Task_AplicarCPT" name="Aplicar CPT Contrato"
+                        camunda:delegateExpression="${cptService.aplicar}">
+        <bpmn:incoming>FlowCPT_03_Sim</bpmn:incoming>
+        <bpmn:outgoing>FlowCPT_05</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_LiberarCobertura" name="Liberar Cobertura Total"
+                        camunda:delegateExpression="${cptService.liberarCobertura}">
+        <bpmn:incoming>FlowCPT_04_Nao</bpmn:incoming>
+        <bpmn:outgoing>FlowCPT_06</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndCPT" name="CPT Processado">
+        <bpmn:incoming>FlowCPT_05</bpmn:incoming>
+        <bpmn:incoming>FlowCPT_06</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="FlowCPT_01" sourceRef="StartCPT" targetRef="UserTask_ValidacaoCPT"/>
+      <bpmn:sequenceFlow id="FlowCPT_02" sourceRef="UserTask_ValidacaoCPT" targetRef="Gateway_CPTConfirmado"/>
+      <bpmn:sequenceFlow id="FlowCPT_03_Sim" name="SIM" sourceRef="Gateway_CPTConfirmado" targetRef="Task_AplicarCPT">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${cptConfirmado == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowCPT_04_Nao" name="NÃO" sourceRef="Gateway_CPTConfirmado" targetRef="Task_LiberarCobertura">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${cptConfirmado == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowCPT_05" sourceRef="Task_AplicarCPT" targetRef="EndCPT"/>
+      <bpmn:sequenceFlow id="FlowCPT_06" sourceRef="Task_LiberarCobertura" targetRef="EndCPT"/>
+    </bpmn:subProcess>
+
+    <!-- Service Task: Criar Plano de Cuidados -->
+    <bpmn:serviceTask id="Task_CriarPlanoCuidados" name="Criar Plano de Cuidados Inicial"
+                      camunda:delegateExpression="${planoCuidadosService.criar}">
+      <bpmn:incoming>Flow_14_Nao</bpmn:incoming>
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Registrar Perfil no Data Lake -->
+    <bpmn:serviceTask id="Task_RegistrarPerfil" name="Registrar Perfil Completo no Data Lake"
+                      camunda:delegateExpression="${dataLakeService.registrarPerfil}">
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_17</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Send Task: Enviar Resumo -->
+    <bpmn:sendTask id="Task_EnviarResumo" name="Enviar Resumo de Boas-vindas + Próximos Passos"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">resumo_onboarding_v2</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_18</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <!-- Exclusive Gateway: Elegível para Programa Crônicos? -->
+    <bpmn:exclusiveGateway id="Gateway_ElegivelCronico" name="Elegível para Programa de Crônicos?">
+      <bpmn:incoming>Flow_18</bpmn:incoming>
+      <bpmn:outgoing>Flow_19_Sim</bpmn:outgoing>
+      <bpmn:outgoing>Flow_19_Nao</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Signal Throw: Elegível Programa Crônico -->
+    <bpmn:intermediateThrowEvent id="Event_ElegivelCronico" name="Signal: ElegivelProgramaCronico">
+      <bpmn:incoming>Flow_19_Sim</bpmn:incoming>
+      <bpmn:outgoing>Flow_20</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_ElegivelProgramaCronico"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- Signal Throw: Onboarding Concluído -->
+    <bpmn:intermediateThrowEvent id="Event_OnboardingConcluido" name="Signal: OnboardingConcluido">
+      <bpmn:incoming>Flow_19_Nao</bpmn:incoming>
+      <bpmn:incoming>Flow_20</bpmn:incoming>
+      <bpmn:outgoing>Flow_21</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_OnboardingConcluido"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- END Event -->
+    <bpmn:endEvent id="EndEvent_OnboardingCompleto" name="Onboarding Completo">
+      <bpmn:incoming>Flow_21</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Msg_OnboardingCompletoBeneficiario"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_NovaAdesao" targetRef="Task_CriarRegistroTasy"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_CriarRegistroTasy" targetRef="Task_PrepararBoasVindas"/>
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_PrepararBoasVindas" targetRef="Task_EnviarBoasVindas"/>
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="Task_EnviarBoasVindas" targetRef="Task_AguardarAceite"/>
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_AguardarAceite" targetRef="SubProcess_Screening"/>
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="SubProcess_Screening" targetRef="Gateway_Fork_Analises"/>
+    <bpmn:sequenceFlow id="Flow_07_NLP" sourceRef="Gateway_Fork_Analises" targetRef="Task_AnalisarNLP"/>
+    <bpmn:sequenceFlow id="Flow_08_Documentos" sourceRef="Gateway_Fork_Analises" targetRef="SubProcess_Documentos"/>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_AnalisarNLP" targetRef="Gateway_Join_Analises"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="SubProcess_Documentos" targetRef="Gateway_Join_Analises"/>
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Gateway_Join_Analises" targetRef="Task_EstratificacaoRisco"/>
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_EstratificacaoRisco" targetRef="Task_DeteccaoCPT"/>
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_DeteccaoCPT" targetRef="Gateway_CPTDetectado"/>
+    <bpmn:sequenceFlow id="Flow_14_Sim" name="SIM" sourceRef="Gateway_CPTDetectado" targetRef="SubProcess_InvestigacaoCPT">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelConfianca &gt; 80}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_14_Nao" name="NÃO" sourceRef="Gateway_CPTDetectado" targetRef="Task_CriarPlanoCuidados">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelConfianca &lt;= 80}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="SubProcess_InvestigacaoCPT" targetRef="Task_CriarPlanoCuidados"/>
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_CriarPlanoCuidados" targetRef="Task_RegistrarPerfil"/>
+    <bpmn:sequenceFlow id="Flow_17" sourceRef="Task_RegistrarPerfil" targetRef="Task_EnviarResumo"/>
+    <bpmn:sequenceFlow id="Flow_18" sourceRef="Task_EnviarResumo" targetRef="Gateway_ElegivelCronico"/>
+    <bpmn:sequenceFlow id="Flow_19_Sim" name="SIM" sourceRef="Gateway_ElegivelCronico" targetRef="Event_ElegivelCronico">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${condicoesCronicas != null &amp;&amp; condicoesCronicas.size() &gt; 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_19_Nao" name="NÃO" sourceRef="Gateway_ElegivelCronico" targetRef="Event_OnboardingConcluido">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${condicoesCronicas == null || condicoesCronicas.size() == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_20" sourceRef="Event_ElegivelCronico" targetRef="Event_OnboardingConcluido"/>
+    <bpmn:sequenceFlow id="Flow_21" sourceRef="Event_OnboardingConcluido" targetRef="EndEvent_OnboardingCompleto"/>
+    <bpmn:sequenceFlow id="Flow_Error_01" sourceRef="BoundaryError_TasyIndisponivel" targetRef="SubProcess_RetryBackoff"/>
+    <bpmn:sequenceFlow id="Flow_Error_02" sourceRef="SubProcess_RetryBackoff" targetRef="EndEvent_Error"/>
+    <bpmn:sequenceFlow id="Flow_Reenvio_01" sourceRef="BoundaryTimer_24h" targetRef="Task_ReenviarConvite1"/>
+    <bpmn:sequenceFlow id="Flow_Reenvio_02" sourceRef="Task_ReenviarConvite1" targetRef="Task_AguardarAceite2"/>
+    <bpmn:sequenceFlow id="Flow_Reenvio_End" sourceRef="Task_AguardarAceite2" targetRef="SubProcess_Screening"/>
+    <bpmn:sequenceFlow id="Flow_Contato_01" sourceRef="BoundaryTimer_48h" targetRef="UserTask_ContatoTelefonico"/>
+    <bpmn:sequenceFlow id="Flow_Contato_End" sourceRef="UserTask_ContatoTelefonico" targetRef="SubProcess_Screening"/>
+    <bpmn:sequenceFlow id="Flow_Timeout_01" sourceRef="BoundaryTimer_7dias" targetRef="Task_MarcarIncompleto"/>
+    <bpmn:sequenceFlow id="Flow_Timeout_End" sourceRef="Task_MarcarIncompleto" targetRef="EndEvent_OnboardingNaoConcluido"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB001">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB001" bpmnElement="SUB-001_Onboarding_Screening">
+
+      <!-- Main Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_NovaAdesao_di" bpmnElement="StartEvent_NovaAdesao">
+        <dc:Bounds x="180" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CriarRegistroTasy_di" bpmnElement="Task_CriarRegistroTasy">
+        <dc:Bounds x="270" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryError_TasyIndisponivel_di" bpmnElement="BoundaryError_TasyIndisponivel">
+        <dc:Bounds x="352" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="SubProcess_RetryBackoff_di" bpmnElement="SubProcess_RetryBackoff" isExpanded="true">
+        <dc:Bounds x="250" y="220" width="350" height="180"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartError_di" bpmnElement="StartError">
+        <dc:Bounds x="282" y="292" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskRetry_di" bpmnElement="TaskRetry">
+        <dc:Bounds x="370" y="270" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndRetry_di" bpmnElement="EndRetry">
+        <dc:Bounds x="522" y="292" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Error_di" bpmnElement="EndEvent_Error">
+        <dc:Bounds x="662" y="292" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_PrepararBoasVindas_di" bpmnElement="Task_PrepararBoasVindas">
+        <dc:Bounds x="420" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EnviarBoasVindas_di" bpmnElement="Task_EnviarBoasVindas">
+        <dc:Bounds x="570" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AguardarAceite_di" bpmnElement="Task_AguardarAceite">
+        <dc:Bounds x="720" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryTimer_24h_di" bpmnElement="BoundaryTimer_24h">
+        <dc:Bounds x="802" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ReenviarConvite1_di" bpmnElement="Task_ReenviarConvite1">
+        <dc:Bounds x="870" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AguardarAceite2_di" bpmnElement="Task_AguardarAceite2">
+        <dc:Bounds x="1020" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryTimer_48h_di" bpmnElement="BoundaryTimer_48h">
+        <dc:Bounds x="1102" y="242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_ContatoTelefonico_di" bpmnElement="UserTask_ContatoTelefonico">
+        <dc:Bounds x="1170" y="290" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryTimer_7dias_di" bpmnElement="BoundaryTimer_7dias">
+        <dc:Bounds x="1252" y="352" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_MarcarIncompleto_di" bpmnElement="Task_MarcarIncompleto">
+        <dc:Bounds x="1320" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_OnboardingNaoConcluido_di" bpmnElement="EndEvent_OnboardingNaoConcluido">
+        <dc:Bounds x="1472" y="422" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess: Screening Conversacional -->
+      <bpmndi:BPMNShape id="SubProcess_Screening_di" bpmnElement="SubProcess_Screening" isExpanded="true">
+        <dc:Bounds x="180" y="520" width="600" height="280"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartScreening_di" bpmnElement="StartScreening">
+        <dc:Bounds x="220" y="642" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskEnviarPerguntas_di" bpmnElement="TaskEnviarPerguntas">
+        <dc:Bounds x="310" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskCapturarRespostas_di" bpmnElement="TaskCapturarRespostas">
+        <dc:Bounds x="460" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryTimer_30min_di" bpmnElement="BoundaryTimer_30min">
+        <dc:Bounds x="542" y="682" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskValidarRespostas_di" bpmnElement="TaskValidarRespostas">
+        <dc:Bounds x="610" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndScreening_di" bpmnElement="EndScreening">
+        <dc:Bounds x="722" y="642" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway Fork Análises -->
+      <bpmndi:BPMNShape id="Gateway_Fork_Analises_di" bpmnElement="Gateway_Fork_Analises">
+        <dc:Bounds x="830" y="635" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AnalisarNLP_di" bpmnElement="Task_AnalisarNLP">
+        <dc:Bounds x="930" y="570" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess: Documentos -->
+      <bpmndi:BPMNShape id="SubProcess_Documentos_di" bpmnElement="SubProcess_Documentos" isExpanded="true">
+        <dc:Bounds x="930" y="700" width="450" height="200"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartDocs_di" bpmnElement="StartDocs">
+        <dc:Bounds x="970" y="782" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskAguardarUpload_di" bpmnElement="TaskAguardarUpload">
+        <dc:Bounds x="1060" y="760" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryTimer_7diasDocs_di" bpmnElement="BoundaryTimer_7diasDocs">
+        <dc:Bounds x="1142" y="822" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="TaskProcessarOCR_di" bpmnElement="TaskProcessarOCR">
+        <dc:Bounds x="1210" y="760" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndDocs_di" bpmnElement="EndDocs">
+        <dc:Bounds x="1322" y="782" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway Join Análises -->
+      <bpmndi:BPMNShape id="Gateway_Join_Analises_di" bpmnElement="Gateway_Join_Analises">
+        <dc:Bounds x="1430" y="635" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EstratificacaoRisco_di" bpmnElement="Task_EstratificacaoRisco">
+        <dc:Bounds x="1530" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_DeteccaoCPT_di" bpmnElement="Task_DeteccaoCPT">
+        <dc:Bounds x="1680" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_CPTDetectado_di" bpmnElement="Gateway_CPTDetectado">
+        <dc:Bounds x="1830" y="635" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess: Investigação CPT -->
+      <bpmndi:BPMNShape id="SubProcess_InvestigacaoCPT_di" bpmnElement="SubProcess_InvestigacaoCPT" isExpanded="true">
+        <dc:Bounds x="1920" y="450" width="550" height="280"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartCPT_di" bpmnElement="StartCPT">
+        <dc:Bounds x="1960" y="572" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_ValidacaoCPT_di" bpmnElement="UserTask_ValidacaoCPT">
+        <dc:Bounds x="2050" y="550" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_CPTConfirmado_di" bpmnElement="Gateway_CPTConfirmado">
+        <dc:Bounds x="2200" y="565" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AplicarCPT_di" bpmnElement="Task_AplicarCPT">
+        <dc:Bounds x="2300" y="490" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_LiberarCobertura_di" bpmnElement="Task_LiberarCobertura">
+        <dc:Bounds x="2300" y="610" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndCPT_di" bpmnElement="EndCPT">
+        <dc:Bounds x="2412" y="572" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CriarPlanoCuidados_di" bpmnElement="Task_CriarPlanoCuidados">
+        <dc:Bounds x="2520" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegistrarPerfil_di" bpmnElement="Task_RegistrarPerfil">
+        <dc:Bounds x="2670" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EnviarResumo_di" bpmnElement="Task_EnviarResumo">
+        <dc:Bounds x="2820" y="620" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_ElegivelCronico_di" bpmnElement="Gateway_ElegivelCronico">
+        <dc:Bounds x="2970" y="635" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_ElegivelCronico_di" bpmnElement="Event_ElegivelCronico">
+        <dc:Bounds x="3070" y="572" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_OnboardingConcluido_di" bpmnElement="Event_OnboardingConcluido">
+        <dc:Bounds x="3170" y="642" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_OnboardingCompleto_di" bpmnElement="EndEvent_OnboardingCompleto">
+        <dc:Bounds x="3270" y="642" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Flow Edges -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="216" y="120"/>
+        <di:waypoint x="270" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="370" y="120"/>
+        <di:waypoint x="420" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="520" y="120"/>
+        <di:waypoint x="570" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="670" y="120"/>
+        <di:waypoint x="720" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="770" y="160"/>
+        <di:waypoint x="770" y="660"/>
+        <di:waypoint x="180" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="780" y="660"/>
+        <di:waypoint x="830" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_07_NLP_di" bpmnElement="Flow_07_NLP">
+        <di:waypoint x="855" y="635"/>
+        <di:waypoint x="855" y="610"/>
+        <di:waypoint x="930" y="610"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_08_Documentos_di" bpmnElement="Flow_08_Documentos">
+        <di:waypoint x="855" y="685"/>
+        <di:waypoint x="855" y="800"/>
+        <di:waypoint x="930" y="800"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1030" y="610"/>
+        <di:waypoint x="1455" y="610"/>
+        <di:waypoint x="1455" y="635"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1380" y="800"/>
+        <di:waypoint x="1455" y="800"/>
+        <di:waypoint x="1455" y="685"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="1480" y="660"/>
+        <di:waypoint x="1530" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1630" y="660"/>
+        <di:waypoint x="1680" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="1780" y="660"/>
+        <di:waypoint x="1830" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_14_Sim_di" bpmnElement="Flow_14_Sim">
+        <di:waypoint x="1855" y="635"/>
+        <di:waypoint x="1855" y="590"/>
+        <di:waypoint x="1920" y="590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_14_Nao_di" bpmnElement="Flow_14_Nao">
+        <di:waypoint x="1880" y="660"/>
+        <di:waypoint x="2520" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15">
+        <di:waypoint x="2470" y="590"/>
+        <di:waypoint x="2570" y="590"/>
+        <di:waypoint x="2570" y="620"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="2620" y="660"/>
+        <di:waypoint x="2670" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17">
+        <di:waypoint x="2770" y="660"/>
+        <di:waypoint x="2820" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18">
+        <di:waypoint x="2920" y="660"/>
+        <di:waypoint x="2970" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_19_Sim_di" bpmnElement="Flow_19_Sim">
+        <di:waypoint x="2995" y="635"/>
+        <di:waypoint x="2995" y="590"/>
+        <di:waypoint x="3070" y="590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_19_Nao_di" bpmnElement="Flow_19_Nao">
+        <di:waypoint x="3020" y="660"/>
+        <di:waypoint x="3170" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20">
+        <di:waypoint x="3106" y="590"/>
+        <di:waypoint x="3188" y="590"/>
+        <di:waypoint x="3188" y="642"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21">
+        <di:waypoint x="3206" y="660"/>
+        <di:waypoint x="3270" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Error_01_di" bpmnElement="Flow_Error_01">
+        <di:waypoint x="370" y="178"/>
+        <di:waypoint x="370" y="310"/>
+        <di:waypoint x="250" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Error_02_di" bpmnElement="Flow_Error_02">
+        <di:waypoint x="600" y="310"/>
+        <di:waypoint x="662" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Reenvio_01_di" bpmnElement="Flow_Reenvio_01">
+        <di:waypoint x="820" y="178"/>
+        <di:waypoint x="820" y="220"/>
+        <di:waypoint x="870" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Reenvio_02_di" bpmnElement="Flow_Reenvio_02">
+        <di:waypoint x="970" y="220"/>
+        <di:waypoint x="1020" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Reenvio_End_di" bpmnElement="Flow_Reenvio_End">
+        <di:waypoint x="1070" y="260"/>
+        <di:waypoint x="1070" y="660"/>
+        <di:waypoint x="180" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Contato_01_di" bpmnElement="Flow_Contato_01">
+        <di:waypoint x="1120" y="278"/>
+        <di:waypoint x="1120" y="330"/>
+        <di:waypoint x="1170" y="330"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Contato_End_di" bpmnElement="Flow_Contato_End">
+        <di:waypoint x="1220" y="370"/>
+        <di:waypoint x="1220" y="660"/>
+        <di:waypoint x="180" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timeout_01_di" bpmnElement="Flow_Timeout_01">
+        <di:waypoint x="1270" y="388"/>
+        <di:waypoint x="1270" y="440"/>
+        <di:waypoint x="1320" y="440"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timeout_End_di" bpmnElement="Flow_Timeout_End">
+        <di:waypoint x="1420" y="440"/>
+        <di:waypoint x="1472" y="440"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Screening Edges -->
+      <bpmndi:BPMNEdge id="FlowScreen_01_di" bpmnElement="FlowScreen_01">
+        <di:waypoint x="256" y="660"/>
+        <di:waypoint x="310" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowScreen_02_di" bpmnElement="FlowScreen_02">
+        <di:waypoint x="410" y="660"/>
+        <di:waypoint x="460" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowScreen_03_di" bpmnElement="FlowScreen_03">
+        <di:waypoint x="560" y="660"/>
+        <di:waypoint x="610" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowScreen_04_di" bpmnElement="FlowScreen_04">
+        <di:waypoint x="710" y="660"/>
+        <di:waypoint x="722" y="660"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Retry Edges -->
+      <bpmndi:BPMNEdge id="FlowRetry_01_di" bpmnElement="FlowRetry_01">
+        <di:waypoint x="318" y="310"/>
+        <di:waypoint x="370" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowRetry_02_di" bpmnElement="FlowRetry_02">
+        <di:waypoint x="470" y="310"/>
+        <di:waypoint x="522" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Documentos Edges -->
+      <bpmndi:BPMNEdge id="FlowDoc_01_di" bpmnElement="FlowDoc_01">
+        <di:waypoint x="1006" y="800"/>
+        <di:waypoint x="1060" y="800"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowDoc_02_di" bpmnElement="FlowDoc_02">
+        <di:waypoint x="1160" y="800"/>
+        <di:waypoint x="1210" y="800"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowDoc_03_di" bpmnElement="FlowDoc_03">
+        <di:waypoint x="1310" y="800"/>
+        <di:waypoint x="1322" y="800"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess CPT Edges -->
+      <bpmndi:BPMNEdge id="FlowCPT_01_di" bpmnElement="FlowCPT_01">
+        <di:waypoint x="1996" y="590"/>
+        <di:waypoint x="2050" y="590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowCPT_02_di" bpmnElement="FlowCPT_02">
+        <di:waypoint x="2150" y="590"/>
+        <di:waypoint x="2200" y="590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowCPT_03_Sim_di" bpmnElement="FlowCPT_03_Sim">
+        <di:waypoint x="2225" y="565"/>
+        <di:waypoint x="2225" y="530"/>
+        <di:waypoint x="2300" y="530"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowCPT_04_Nao_di" bpmnElement="FlowCPT_04_Nao">
+        <di:waypoint x="2225" y="615"/>
+        <di:waypoint x="2225" y="650"/>
+        <di:waypoint x="2300" y="650"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowCPT_05_di" bpmnElement="FlowCPT_05">
+        <di:waypoint x="2400" y="530"/>
+        <di:waypoint x="2430" y="530"/>
+        <di:waypoint x="2430" y="590"/>
+        <di:waypoint x="2412" y="590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowCPT_06_di" bpmnElement="FlowCPT_06">
+        <di:waypoint x="2400" y="650"/>
+        <di:waypoint x="2430" y="650"/>
+        <di:waypoint x="2430" y="590"/>
+        <di:waypoint x="2412" y="590"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SUB010"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:signal id="Signal_CicloFinalizado" name="Signal_CicloFinalizado"/>
+  <bpmn:message id="Msg_RespostaNPS" name="Msg_RespostaNPS"/>
+  <bpmn:message id="Msg_FeedbackML" name="Msg_FeedbackML"/>
+
+  <bpmn:process id="SUB-010_Follow_Up_Feedback" name="SUB-010: Follow-up, Feedback e Encerramento"
+                isExecutable="true" camunda:historyTimeToLive="365" camunda:versionTag="2.0">
+
+    <bpmn:startEvent id="StartEvent_CicloFinalizado" name="Ciclo Finalizado">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_CicloFinalizado"/>
+    </bpmn:startEvent>
+
+    <bpmn:intermediateCatchEvent id="Event_Timer24h" name="Aguardar 24h">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:sendTask id="Task_EnviarPesquisaNPS" name="Enviar Pesquisa NPS"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">pesquisa_nps_v2</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:receiveTask id="Task_AguardarRespostaNPS" name="Aguardar Resposta NPS"
+                      messageRef="Msg_RespostaNPS">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="correlationKey" value="${beneficiarioId}"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <!-- Boundary Timer 72h -->
+    <bpmn:boundaryEvent id="BoundaryTimer_72h" name="72h" cancelActivity="true"
+                        attachedToRef="Task_AguardarRespostaNPS">
+      <bpmn:outgoing>Flow_Timeout_01</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT72H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="Task_RegistrarNaoRespondeu" name="Registrar Não Respondeu"
+                      camunda:delegateExpression="${npsService.registrarNaoRespondeu}">
+      <bpmn:incoming>Flow_Timeout_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timeout_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:businessRuleTask id="Task_ClassificarNPS" name="Classificar NPS"
+                           camunda:resultVariable="classificacaoNPS"
+                           camunda:decisionRef="DMN_ClassificacaoNPS">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:exclusiveGateway id="Gateway_TipoNPS" name="Tipo de NPS?">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_06_Promotor</bpmn:outgoing>
+      <bpmn:outgoing>Flow_07_Neutro</bpmn:outgoing>
+      <bpmn:outgoing>Flow_08_Detrator</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sendTask id="Task_AgradecerPromotor" name="Agradecer Promotor"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">agradecimento_promotor_v1</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_06_Promotor</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:serviceTask id="Task_SolicitarFeedbackNeutro" name="Solicitar Feedback Detalhado"
+                      camunda:type="external"
+                      camunda:topic="whatsapp-sender">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="templateId">feedback_neutro_v1</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_07_Neutro</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:callActivity id="CallActivity_SUB009" name="SUB-009: Gestão de Reclamações"
+                       calledElement="SUB-009_Gestao_Reclamacoes">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:in source="feedbackId" target="feedbackId"/>
+        <camunda:out source="reclamacaoId" target="reclamacaoId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_08_Detrator</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:serviceTask id="Task_AnalisarSentimento" name="Analisar Sentimento e Temas"
+                      camunda:type="external"
+                      camunda:topic="nlp-sentiment-analysis">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:incoming>Flow_Timeout_End</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_ConsolidarMetricas" name="Consolidar Métricas"
+                      camunda:delegateExpression="${metricasService.consolidarFeedback}">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_AtualizarModeloML" name="Atualizar Modelo ML"
+                      camunda:type="external"
+                      camunda:topic="ml-model-update">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="feedbackData">${feedbackData}</camunda:inputParameter>
+          <camunda:inputParameter name="nps">${nps}</camunda:inputParameter>
+          <camunda:inputParameter name="sentimento">${sentimento}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_PublicarDataLake" name="Publicar no Data Lake"
+                      camunda:delegateExpression="${dataLakeService.publicarFeedback}">
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_AtualizarDashboard" name="Atualizar Dashboard de NPS"
+                      camunda:delegateExpression="${dashboardService.atualizarNPS}">
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_FeedbackProcessado" name="Feedback Processado">
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_CicloFinalizado" targetRef="Event_Timer24h"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Event_Timer24h" targetRef="Task_EnviarPesquisaNPS"/>
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_EnviarPesquisaNPS" targetRef="Task_AguardarRespostaNPS"/>
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="Task_AguardarRespostaNPS" targetRef="Task_ClassificarNPS"/>
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_ClassificarNPS" targetRef="Gateway_TipoNPS"/>
+    <bpmn:sequenceFlow id="Flow_06_Promotor" name="Promotor (9-10)" sourceRef="Gateway_TipoNPS" targetRef="Task_AgradecerPromotor">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps &gt;= 9}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_07_Neutro" name="Neutro (7-8)" sourceRef="Gateway_TipoNPS" targetRef="Task_SolicitarFeedbackNeutro">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps &gt;= 7 &amp;&amp; nps &lt;= 8}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_08_Detrator" name="Detrator (0-6)" sourceRef="Gateway_TipoNPS" targetRef="CallActivity_SUB009">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps &lt;= 6}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_AgradecerPromotor" targetRef="Task_AnalisarSentimento"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_SolicitarFeedbackNeutro" targetRef="Task_AnalisarSentimento"/>
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="CallActivity_SUB009" targetRef="Task_AnalisarSentimento"/>
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_AnalisarSentimento" targetRef="Task_ConsolidarMetricas"/>
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_ConsolidarMetricas" targetRef="Task_AtualizarModeloML"/>
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_AtualizarModeloML" targetRef="Task_PublicarDataLake"/>
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="Task_PublicarDataLake" targetRef="Task_AtualizarDashboard"/>
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_AtualizarDashboard" targetRef="EndEvent_FeedbackProcessado"/>
+    <bpmn:sequenceFlow id="Flow_Timeout_01" sourceRef="BoundaryTimer_72h" targetRef="Task_RegistrarNaoRespondeu"/>
+    <bpmn:sequenceFlow id="Flow_Timeout_End" sourceRef="Task_RegistrarNaoRespondeu" targetRef="Task_AnalisarSentimento"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB010">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB010" bpmnElement="SUB-010_Follow_Up_Feedback">
+
+      <!-- Shapes (22 total elements) -->
+      <bpmndi:BPMNShape id="StartEvent_CicloFinalizado_di" bpmnElement="StartEvent_CicloFinalizado">
+        <dc:Bounds x="172" y="182" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="151" y="225" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_Timer24h_di" bpmnElement="Event_Timer24h">
+        <dc:Bounds x="262" y="182" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="244" y="225" width="72" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EnviarPesquisaNPS_di" bpmnElement="Task_EnviarPesquisaNPS">
+        <dc:Bounds x="350" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AguardarRespostaNPS_di" bpmnElement="Task_AguardarRespostaNPS">
+        <dc:Bounds x="510" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegistrarNaoRespondeu_di" bpmnElement="Task_RegistrarNaoRespondeu">
+        <dc:Bounds x="510" y="310" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ClassificarNPS_di" bpmnElement="Task_ClassificarNPS">
+        <dc:Bounds x="670" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_TipoNPS_di" bpmnElement="Gateway_TipoNPS" isMarkerVisible="true">
+        <dc:Bounds x="835" y="175" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="823" y="145" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AgradecerPromotor_di" bpmnElement="Task_AgradecerPromotor">
+        <dc:Bounds x="950" y="50" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_SolicitarFeedbackNeutro_di" bpmnElement="Task_SolicitarFeedbackNeutro">
+        <dc:Bounds x="950" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB009_di" bpmnElement="CallActivity_SUB009">
+        <dc:Bounds x="940" y="280" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AnalisarSentimento_di" bpmnElement="Task_AnalisarSentimento">
+        <dc:Bounds x="1130" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConsolidarMetricas_di" bpmnElement="Task_ConsolidarMetricas">
+        <dc:Bounds x="1290" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarModeloML_di" bpmnElement="Task_AtualizarModeloML">
+        <dc:Bounds x="1450" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_PublicarDataLake_di" bpmnElement="Task_PublicarDataLake">
+        <dc:Bounds x="1610" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarDashboard_di" bpmnElement="Task_AtualizarDashboard">
+        <dc:Bounds x="1770" y="160" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_FeedbackProcessado_di" bpmnElement="EndEvent_FeedbackProcessado">
+        <dc:Bounds x="1932" y="182" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1921" y="225" width="58" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary Event -->
+      <bpmndi:BPMNShape id="BoundaryTimer_72h_di" bpmnElement="BoundaryTimer_72h">
+        <dc:Bounds x="542" y="222" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="576" y="253" width="21" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="208" y="200"/>
+        <di:waypoint x="262" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="298" y="200"/>
+        <di:waypoint x="350" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="450" y="200"/>
+        <di:waypoint x="510" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="610" y="200"/>
+        <di:waypoint x="670" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="770" y="200"/>
+        <di:waypoint x="835" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_06_Promotor_di" bpmnElement="Flow_06_Promotor">
+        <di:waypoint x="860" y="175"/>
+        <di:waypoint x="860" y="90"/>
+        <di:waypoint x="950" y="90"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="867" y="130" width="85" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_07_Neutro_di" bpmnElement="Flow_07_Neutro">
+        <di:waypoint x="885" y="200"/>
+        <di:waypoint x="950" y="200"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="892" y="182" width="68" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_08_Detrator_di" bpmnElement="Flow_08_Detrator">
+        <di:waypoint x="860" y="225"/>
+        <di:waypoint x="860" y="320"/>
+        <di:waypoint x="940" y="320"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="867" y="270" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1050" y="90"/>
+        <di:waypoint x="1090" y="90"/>
+        <di:waypoint x="1090" y="200"/>
+        <di:waypoint x="1130" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1050" y="200"/>
+        <di:waypoint x="1130" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="1060" y="320"/>
+        <di:waypoint x="1095" y="320"/>
+        <di:waypoint x="1095" y="200"/>
+        <di:waypoint x="1130" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1230" y="200"/>
+        <di:waypoint x="1290" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="1390" y="200"/>
+        <di:waypoint x="1450" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14">
+        <di:waypoint x="1550" y="200"/>
+        <di:waypoint x="1610" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15">
+        <di:waypoint x="1710" y="200"/>
+        <di:waypoint x="1770" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="1870" y="200"/>
+        <di:waypoint x="1932" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timeout_01_di" bpmnElement="Flow_Timeout_01">
+        <di:waypoint x="560" y="258"/>
+        <di:waypoint x="560" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timeout_End_di" bpmnElement="Flow_Timeout_End">
+        <di:waypoint x="610" y="350"/>
+        <di:waypoint x="870" y="350"/>
+        <di:waypoint x="870" y="200"/>
+        <di:waypoint x="1130" y="200"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

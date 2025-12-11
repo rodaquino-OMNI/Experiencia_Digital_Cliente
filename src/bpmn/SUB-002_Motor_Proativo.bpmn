@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SUB002"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:signal id="Signal_AtivarMotorProativo" name="Signal_AtivarMotorProativo"/>
+  <bpmn:signal id="Signal_AlertaAltoRisco" name="Signal_AlertaAltoRisco"/>
+  <bpmn:signal id="Signal_OnboardingConcluido" name="Signal_OnboardingConcluido"/>
+
+  <bpmn:message id="Msg_PreditorInternacaoAlerta" name="Msg_PreditorInternacaoAlerta"/>
+  <bpmn:message id="Msg_RespostaBeneficiario" name="Msg_RespostaBeneficiario"/>
+
+  <bpmn:process id="SUB-002_Motor_Proativo" name="SUB-002: Motor Proativo de Antecipação"
+                isExecutable="true" camunda:historyTimeToLive="365" camunda:versionTag="2.0">
+
+    <!-- START Event 1: Timer Diário -->
+    <bpmn:startEvent id="StartEvent_TimerDiario" name="Execução Diária 06:00">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">0 6 * * *</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Carregar Base Ativa -->
+    <bpmn:serviceTask id="Task_CarregarBaseAtiva" name="Carregar Base de Beneficiários Ativos"
+                      camunda:delegateExpression="${motorProativoService.carregarBaseAtiva}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="listaBeneficiarios">${listaBeneficiarios}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Multi-Instance Subprocess: Processar Beneficiários -->
+    <bpmn:subProcess id="SubProcess_ProcessarBeneficiarios" name="Multi-Instance Paralelo">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+
+      <bpmn:multiInstanceLoopCharacteristics isSequential="false"
+                                             camunda:asyncBefore="true"
+                                             camunda:collection="${listaBeneficiarios}"
+                                             camunda:elementVariable="beneficiario">
+        <bpmn:extensionElements>
+          <camunda:executionListener event="start">
+            <camunda:field name="maxConcurrent">
+              <camunda:string>50</camunda:string>
+            </camunda:field>
+          </camunda:executionListener>
+        </bpmn:extensionElements>
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <bpmn:startEvent id="StartProc" name="Processar Beneficiário">
+        <bpmn:outgoing>FlowProc_01</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- Service Task: Coletar Dados -->
+      <bpmn:serviceTask id="Task_ColetarDados" name="Coletar Dados Atualizados"
+                        camunda:delegateExpression="${dadosService.coletarContexto}">
+        <bpmn:incoming>FlowProc_01</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_02</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Business Rule Task: Identificar Gatilhos -->
+      <bpmn:businessRuleTask id="Task_IdentificarGatilhos" name="Identificar Gatilhos"
+                             camunda:resultVariable="gatilhosAtivados"
+                             camunda:decisionRef="DMN_GatilhosProativos"
+                             camunda:mapDecisionResult="collectEntries">
+        <bpmn:incoming>FlowProc_02</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_03</bpmn:outgoing>
+      </bpmn:businessRuleTask>
+
+      <!-- Exclusive Gateway: Há Gatilhos? -->
+      <bpmn:exclusiveGateway id="Gateway_HaGatilhos" name="Há gatilhos ativados?">
+        <bpmn:incoming>FlowProc_03</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_04_Sim</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_04_Nao</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <!-- Inclusive Gateway: Fork por Tipo de Gatilho -->
+      <bpmn:inclusiveGateway id="Gateway_ForkGatilhos" name="Fork por tipo de gatilho">
+        <bpmn:incoming>FlowProc_04_Sim</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_05_Lembretes</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_06_Alertas</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_07_Adesao</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_08_Campanhas</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_09_Criticos</bpmn:outgoing>
+        <bpmn:outgoing>FlowProc_10_Carencia</bpmn:outgoing>
+      </bpmn:inclusiveGateway>
+
+      <!-- Call Activities para cada tipo de gatilho -->
+      <bpmn:callActivity id="CallActivity_Lembretes" name="GAT-001/002: Lembretes"
+                         calledElement="SUB-002-001_Gatilhos_Lembretes">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+          <camunda:in source="gatilhosAtivados" target="gatilhosAtivados"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_05_Lembretes</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_11</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:callActivity id="CallActivity_Alertas" name="GAT-003/004/008/009: Alertas"
+                         calledElement="SUB-002-002_Gatilhos_Alertas">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+          <camunda:in source="gatilhosAtivados" target="gatilhosAtivados"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_06_Alertas</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_12</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:callActivity id="CallActivity_Adesao" name="GAT-005: Adesão"
+                         calledElement="SUB-002-003_Gatilhos_Adesao">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_07_Adesao</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_13</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:callActivity id="CallActivity_Campanhas" name="GAT-006/007: Campanhas"
+                         calledElement="SUB-002-004_Gatilhos_Campanhas">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_08_Campanhas</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_14</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:callActivity id="CallActivity_Criticos" name="GAT-010/011: Críticos"
+                         calledElement="SUB-002-005_Gatilhos_Criticos">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_09_Criticos</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_15</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:callActivity id="CallActivity_Carencia" name="GAT-012: Carência"
+                         calledElement="SUB-002-006_Gatilhos_Carencia">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiario" target="beneficiario"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>FlowProc_10_Carencia</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_16</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <!-- Service Task: Registrar Sem Ação -->
+      <bpmn:serviceTask id="Task_RegistrarSemAcao" name="Registrar 'Sem Ação'"
+                        camunda:delegateExpression="${motorProativoService.registrarSemAcao}">
+        <bpmn:incoming>FlowProc_04_Nao</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_17</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Inclusive Gateway: Join -->
+      <bpmn:inclusiveGateway id="Gateway_JoinGatilhos" name="Join">
+        <bpmn:incoming>FlowProc_11</bpmn:incoming>
+        <bpmn:incoming>FlowProc_12</bpmn:incoming>
+        <bpmn:incoming>FlowProc_13</bpmn:incoming>
+        <bpmn:incoming>FlowProc_14</bpmn:incoming>
+        <bpmn:incoming>FlowProc_15</bpmn:incoming>
+        <bpmn:incoming>FlowProc_16</bpmn:incoming>
+        <bpmn:incoming>FlowProc_17</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_18</bpmn:outgoing>
+      </bpmn:inclusiveGateway>
+
+      <!-- Service Task: Registrar Ações -->
+      <bpmn:serviceTask id="Task_RegistrarAcoes" name="Registrar Ações Executadas"
+                        camunda:delegateExpression="${motorProativoService.registrarAcoes}">
+        <bpmn:incoming>FlowProc_18</bpmn:incoming>
+        <bpmn:outgoing>FlowProc_19</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndProc" name="Beneficiário Processado">
+        <bpmn:incoming>FlowProc_19</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- Sequence Flows -->
+      <bpmn:sequenceFlow id="FlowProc_01" sourceRef="StartProc" targetRef="Task_ColetarDados"/>
+      <bpmn:sequenceFlow id="FlowProc_02" sourceRef="Task_ColetarDados" targetRef="Task_IdentificarGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_03" sourceRef="Task_IdentificarGatilhos" targetRef="Gateway_HaGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_04_Sim" name="SIM" sourceRef="Gateway_HaGatilhos" targetRef="Gateway_ForkGatilhos">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados != null &amp;&amp; gatilhosAtivados.size() &gt; 0}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_04_Nao" name="NÃO" sourceRef="Gateway_HaGatilhos" targetRef="Task_RegistrarSemAcao">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados == null || gatilhosAtivados.size() == 0}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_05_Lembretes" name="Lembretes" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Lembretes">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-001') || gatilhosAtivados.contains('GAT-002')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_06_Alertas" name="Alertas" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Alertas">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-003') || gatilhosAtivados.contains('GAT-004') || gatilhosAtivados.contains('GAT-008') || gatilhosAtivados.contains('GAT-009')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_07_Adesao" name="Adesão" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Adesao">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-005')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_08_Campanhas" name="Campanhas" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Campanhas">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-006') || gatilhosAtivados.contains('GAT-007')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_09_Criticos" name="Críticos" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Criticos">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-010') || gatilhosAtivados.contains('GAT-011')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_10_Carencia" name="Carência" sourceRef="Gateway_ForkGatilhos" targetRef="CallActivity_Carencia">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${gatilhosAtivados.contains('GAT-012')}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="FlowProc_11" sourceRef="CallActivity_Lembretes" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_12" sourceRef="CallActivity_Alertas" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_13" sourceRef="CallActivity_Adesao" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_14" sourceRef="CallActivity_Campanhas" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_15" sourceRef="CallActivity_Criticos" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_16" sourceRef="CallActivity_Carencia" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_17" sourceRef="Task_RegistrarSemAcao" targetRef="Gateway_JoinGatilhos"/>
+      <bpmn:sequenceFlow id="FlowProc_18" sourceRef="Gateway_JoinGatilhos" targetRef="Task_RegistrarAcoes"/>
+      <bpmn:sequenceFlow id="FlowProc_19" sourceRef="Task_RegistrarAcoes" targetRef="EndProc"/>
+    </bpmn:subProcess>
+
+    <!-- Service Task: Consolidar Métricas -->
+    <bpmn:serviceTask id="Task_ConsolidarMetricas" name="Consolidar Métricas de Proatividade"
+                      camunda:delegateExpression="${metricasService.consolidarProatividade}">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Atualizar Dashboard -->
+    <bpmn:serviceTask id="Task_AtualizarDashboard" name="Atualizar Dashboard Executivo"
+                      camunda:delegateExpression="${dashboardService.atualizar}">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_BatchCompleto" name="Batch Completo">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- START Event 2: Evento Tempo Real - Predição de Internação -->
+    <bpmn:startEvent id="StartEvent_PredicaoInternacao" name="Predição Internação Alerta">
+      <bpmn:outgoing>Flow_RT_01</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_PreditorInternacaoAlerta"/>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Enriquecer Contexto -->
+    <bpmn:serviceTask id="Task_EnriquecerContexto" name="Enriquecer Contexto do Alerta"
+                      camunda:delegateExpression="${contextoService.enriquecer}">
+      <bpmn:incoming>Flow_RT_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Exclusive Gateway: Score de Risco -->
+    <bpmn:exclusiveGateway id="Gateway_ScoreRiscoInternacao" name="Score de Risco de Internação?">
+      <bpmn:incoming>Flow_RT_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_03_Critico</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RT_04_Alto</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RT_05_Moderado</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Parallel Gateway: Fork Crítico -->
+    <bpmn:parallelGateway id="Gateway_ForkCritico" name="Fork">
+      <bpmn:incoming>Flow_RT_03_Critico</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_06</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RT_07</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:userTask id="UserTask_AlertaNavegador" name="Alerta Navegador + Médico"
+                   camunda:candidateGroups="navegadores,auditores_medicos">
+      <bpmn:extensionElements>
+        <camunda:taskListener event="create">
+          <camunda:field name="sla">
+            <camunda:string>PT2H</camunda:string>
+          </camunda:field>
+        </camunda:taskListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RT_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_08</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sendTask id="Task_ContatoImediato" name="Contato Imediato"
+                   camunda:type="external"
+                   camunda:topic="contato-urgente">
+      <bpmn:incoming>Flow_RT_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_09</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:parallelGateway id="Gateway_JoinCritico" name="Join">
+      <bpmn:incoming>Flow_RT_08</bpmn:incoming>
+      <bpmn:incoming>Flow_RT_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_10</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:intermediateThrowEvent id="Event_AlertaAltoRisco" name="Signal: AlertaAltoRisco">
+      <bpmn:incoming>Flow_RT_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_End</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_AlertaAltoRisco"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- User Task: Alto Risco -->
+    <bpmn:userTask id="UserTask_AlertaNavegadorAlto" name="Alerta para Navegador"
+                   camunda:candidateGroups="navegadores">
+      <bpmn:extensionElements>
+        <camunda:taskListener event="create">
+          <camunda:field name="sla">
+            <camunda:string>PT4H</camunda:string>
+          </camunda:field>
+        </camunda:taskListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RT_04_Alto</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_11</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Send Task: Moderado -->
+    <bpmn:sendTask id="Task_NudgePreventivo" name="Nudge Preventivo via WhatsApp"
+                   camunda:type="external"
+                   camunda:topic="whatsapp-sender">
+      <bpmn:incoming>Flow_RT_05_Moderado</bpmn:incoming>
+      <bpmn:outgoing>Flow_RT_12</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:endEvent id="EndEvent_AlertaProcessado" name="Alerta Processado">
+      <bpmn:incoming>Flow_RT_End</bpmn:incoming>
+      <bpmn:incoming>Flow_RT_11</bpmn:incoming>
+      <bpmn:incoming>Flow_RT_12</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_TimerDiario" targetRef="Task_CarregarBaseAtiva"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_CarregarBaseAtiva" targetRef="SubProcess_ProcessarBeneficiarios"/>
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="SubProcess_ProcessarBeneficiarios" targetRef="Task_ConsolidarMetricas"/>
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="Task_ConsolidarMetricas" targetRef="Task_AtualizarDashboard"/>
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_AtualizarDashboard" targetRef="EndEvent_BatchCompleto"/>
+
+    <bpmn:sequenceFlow id="Flow_RT_01" sourceRef="StartEvent_PredicaoInternacao" targetRef="Task_EnriquecerContexto"/>
+    <bpmn:sequenceFlow id="Flow_RT_02" sourceRef="Task_EnriquecerContexto" targetRef="Gateway_ScoreRiscoInternacao"/>
+    <bpmn:sequenceFlow id="Flow_RT_03_Critico" name=">90% (Crítico)" sourceRef="Gateway_ScoreRiscoInternacao" targetRef="Gateway_ForkCritico">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scoreRiscoInternacao &gt; 90}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RT_04_Alto" name="70-90% (Alto)" sourceRef="Gateway_ScoreRiscoInternacao" targetRef="UserTask_AlertaNavegadorAlto">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scoreRiscoInternacao &gt;= 70 &amp;&amp; scoreRiscoInternacao &lt;= 90}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RT_05_Moderado" name="&lt;70% (Moderado)" sourceRef="Gateway_ScoreRiscoInternacao" targetRef="Task_NudgePreventivo">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scoreRiscoInternacao &lt; 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RT_06" sourceRef="Gateway_ForkCritico" targetRef="UserTask_AlertaNavegador"/>
+    <bpmn:sequenceFlow id="Flow_RT_07" sourceRef="Gateway_ForkCritico" targetRef="Task_ContatoImediato"/>
+    <bpmn:sequenceFlow id="Flow_RT_08" sourceRef="UserTask_AlertaNavegador" targetRef="Gateway_JoinCritico"/>
+    <bpmn:sequenceFlow id="Flow_RT_09" sourceRef="Task_ContatoImediato" targetRef="Gateway_JoinCritico"/>
+    <bpmn:sequenceFlow id="Flow_RT_10" sourceRef="Gateway_JoinCritico" targetRef="Event_AlertaAltoRisco"/>
+    <bpmn:sequenceFlow id="Flow_RT_End" sourceRef="Event_AlertaAltoRisco" targetRef="EndEvent_AlertaProcessado"/>
+    <bpmn:sequenceFlow id="Flow_RT_11" sourceRef="UserTask_AlertaNavegadorAlto" targetRef="EndEvent_AlertaProcessado"/>
+    <bpmn:sequenceFlow id="Flow_RT_12" sourceRef="Task_NudgePreventivo" targetRef="EndEvent_AlertaProcessado"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB002">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB002" bpmnElement="SUB-002_Motor_Proativo">
+
+      <!-- Main Batch Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_TimerDiario_di" bpmnElement="StartEvent_TimerDiario">
+        <dc:Bounds x="180" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CarregarBaseAtiva_di" bpmnElement="Task_CarregarBaseAtiva">
+        <dc:Bounds x="270" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Multi-Instance Subprocess: Processar Beneficiários -->
+      <bpmndi:BPMNShape id="SubProcess_ProcessarBeneficiarios_di" bpmnElement="SubProcess_ProcessarBeneficiarios" isExpanded="true">
+        <dc:Bounds x="180" y="220" width="1400" height="500"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartProc_di" bpmnElement="StartProc">
+        <dc:Bounds x="220" y="352" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ColetarDados_di" bpmnElement="Task_ColetarDados">
+        <dc:Bounds x="310" y="330" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_IdentificarGatilhos_di" bpmnElement="Task_IdentificarGatilhos">
+        <dc:Bounds x="460" y="330" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_HaGatilhos_di" bpmnElement="Gateway_HaGatilhos">
+        <dc:Bounds x="610" y="345" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_ForkGatilhos_di" bpmnElement="Gateway_ForkGatilhos">
+        <dc:Bounds x="710" y="345" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Lembretes_di" bpmnElement="CallActivity_Lembretes">
+        <dc:Bounds x="810" y="250" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Alertas_di" bpmnElement="CallActivity_Alertas">
+        <dc:Bounds x="810" y="360" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Adesao_di" bpmnElement="CallActivity_Adesao">
+        <dc:Bounds x="810" y="470" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Campanhas_di" bpmnElement="CallActivity_Campanhas">
+        <dc:Bounds x="1000" y="250" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Criticos_di" bpmnElement="CallActivity_Criticos">
+        <dc:Bounds x="1000" y="360" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_Carencia_di" bpmnElement="CallActivity_Carencia">
+        <dc:Bounds x="1000" y="470" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegistrarSemAcao_di" bpmnElement="Task_RegistrarSemAcao">
+        <dc:Bounds x="710" y="580" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_JoinGatilhos_di" bpmnElement="Gateway_JoinGatilhos">
+        <dc:Bounds x="1200" y="345" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegistrarAcoes_di" bpmnElement="Task_RegistrarAcoes">
+        <dc:Bounds x="1300" y="330" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndProc_di" bpmnElement="EndProc">
+        <dc:Bounds x="1462" y="352" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConsolidarMetricas_di" bpmnElement="Task_ConsolidarMetricas">
+        <dc:Bounds x="1650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarDashboard_di" bpmnElement="Task_AtualizarDashboard">
+        <dc:Bounds x="1800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_BatchCompleto_di" bpmnElement="EndEvent_BatchCompleto">
+        <dc:Bounds x="1962" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Real-time Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_PredicaoInternacao_di" bpmnElement="StartEvent_PredicaoInternacao">
+        <dc:Bounds x="180" y="852" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EnriquecerContexto_di" bpmnElement="Task_EnriquecerContexto">
+        <dc:Bounds x="270" y="830" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_ScoreRiscoInternacao_di" bpmnElement="Gateway_ScoreRiscoInternacao">
+        <dc:Bounds x="420" y="845" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_ForkCritico_di" bpmnElement="Gateway_ForkCritico">
+        <dc:Bounds x="520" y="755" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_AlertaNavegador_di" bpmnElement="UserTask_AlertaNavegador">
+        <dc:Bounds x="620" y="690" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ContatoImediato_di" bpmnElement="Task_ContatoImediato">
+        <dc:Bounds x="620" y="800" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_JoinCritico_di" bpmnElement="Gateway_JoinCritico">
+        <dc:Bounds x="770" y="755" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_AlertaAltoRisco_di" bpmnElement="Event_AlertaAltoRisco">
+        <dc:Bounds x="870" y="762" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_AlertaNavegadorAlto_di" bpmnElement="UserTask_AlertaNavegadorAlto">
+        <dc:Bounds x="520" y="870" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_NudgePreventivo_di" bpmnElement="Task_NudgePreventivo">
+        <dc:Bounds x="520" y="980" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_AlertaProcessado_di" bpmnElement="EndEvent_AlertaProcessado">
+        <dc:Bounds x="972" y="872" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Batch Flow Edges -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="216" y="120"/>
+        <di:waypoint x="270" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="370" y="120"/>
+        <di:waypoint x="480" y="120"/>
+        <di:waypoint x="480" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="1580" y="470"/>
+        <di:waypoint x="1700" y="470"/>
+        <di:waypoint x="1700" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="1750" y="120"/>
+        <di:waypoint x="1800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="1900" y="120"/>
+        <di:waypoint x="1962" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Processar Beneficiários Edges -->
+      <bpmndi:BPMNEdge id="FlowProc_01_di" bpmnElement="FlowProc_01">
+        <di:waypoint x="256" y="370"/>
+        <di:waypoint x="310" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_02_di" bpmnElement="FlowProc_02">
+        <di:waypoint x="410" y="370"/>
+        <di:waypoint x="460" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_03_di" bpmnElement="FlowProc_03">
+        <di:waypoint x="560" y="370"/>
+        <di:waypoint x="610" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_04_Sim_di" bpmnElement="FlowProc_04_Sim">
+        <di:waypoint x="660" y="370"/>
+        <di:waypoint x="710" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_04_Nao_di" bpmnElement="FlowProc_04_Nao">
+        <di:waypoint x="635" y="395"/>
+        <di:waypoint x="635" y="620"/>
+        <di:waypoint x="710" y="620"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_05_Lembretes_di" bpmnElement="FlowProc_05_Lembretes">
+        <di:waypoint x="735" y="345"/>
+        <di:waypoint x="735" y="295"/>
+        <di:waypoint x="810" y="295"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_06_Alertas_di" bpmnElement="FlowProc_06_Alertas">
+        <di:waypoint x="760" y="370"/>
+        <di:waypoint x="785" y="370"/>
+        <di:waypoint x="785" y="405"/>
+        <di:waypoint x="810" y="405"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_07_Adesao_di" bpmnElement="FlowProc_07_Adesao">
+        <di:waypoint x="735" y="395"/>
+        <di:waypoint x="735" y="515"/>
+        <di:waypoint x="810" y="515"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_08_Campanhas_di" bpmnElement="FlowProc_08_Campanhas">
+        <di:waypoint x="760" y="370"/>
+        <di:waypoint x="880" y="370"/>
+        <di:waypoint x="880" y="295"/>
+        <di:waypoint x="1000" y="295"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_09_Criticos_di" bpmnElement="FlowProc_09_Criticos">
+        <di:waypoint x="760" y="370"/>
+        <di:waypoint x="880" y="370"/>
+        <di:waypoint x="880" y="405"/>
+        <di:waypoint x="1000" y="405"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_10_Carencia_di" bpmnElement="FlowProc_10_Carencia">
+        <di:waypoint x="760" y="370"/>
+        <di:waypoint x="880" y="370"/>
+        <di:waypoint x="880" y="515"/>
+        <di:waypoint x="1000" y="515"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_11_di" bpmnElement="FlowProc_11">
+        <di:waypoint x="940" y="295"/>
+        <di:waypoint x="1225" y="295"/>
+        <di:waypoint x="1225" y="345"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_12_di" bpmnElement="FlowProc_12">
+        <di:waypoint x="940" y="405"/>
+        <di:waypoint x="1070" y="405"/>
+        <di:waypoint x="1070" y="370"/>
+        <di:waypoint x="1200" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_13_di" bpmnElement="FlowProc_13">
+        <di:waypoint x="940" y="515"/>
+        <di:waypoint x="1225" y="515"/>
+        <di:waypoint x="1225" y="395"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_14_di" bpmnElement="FlowProc_14">
+        <di:waypoint x="1130" y="295"/>
+        <di:waypoint x="1225" y="295"/>
+        <di:waypoint x="1225" y="345"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_15_di" bpmnElement="FlowProc_15">
+        <di:waypoint x="1130" y="405"/>
+        <di:waypoint x="1165" y="405"/>
+        <di:waypoint x="1165" y="370"/>
+        <di:waypoint x="1200" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_16_di" bpmnElement="FlowProc_16">
+        <di:waypoint x="1130" y="515"/>
+        <di:waypoint x="1225" y="515"/>
+        <di:waypoint x="1225" y="395"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_17_di" bpmnElement="FlowProc_17">
+        <di:waypoint x="810" y="620"/>
+        <di:waypoint x="1225" y="620"/>
+        <di:waypoint x="1225" y="395"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_18_di" bpmnElement="FlowProc_18">
+        <di:waypoint x="1250" y="370"/>
+        <di:waypoint x="1300" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="FlowProc_19_di" bpmnElement="FlowProc_19">
+        <di:waypoint x="1400" y="370"/>
+        <di:waypoint x="1462" y="370"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Real-time Flow Edges -->
+      <bpmndi:BPMNEdge id="Flow_RT_01_di" bpmnElement="Flow_RT_01">
+        <di:waypoint x="216" y="870"/>
+        <di:waypoint x="270" y="870"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_02_di" bpmnElement="Flow_RT_02">
+        <di:waypoint x="370" y="870"/>
+        <di:waypoint x="420" y="870"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_03_Critico_di" bpmnElement="Flow_RT_03_Critico">
+        <di:waypoint x="445" y="845"/>
+        <di:waypoint x="445" y="780"/>
+        <di:waypoint x="520" y="780"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_04_Alto_di" bpmnElement="Flow_RT_04_Alto">
+        <di:waypoint x="470" y="870"/>
+        <di:waypoint x="495" y="870"/>
+        <di:waypoint x="495" y="910"/>
+        <di:waypoint x="520" y="910"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_05_Moderado_di" bpmnElement="Flow_RT_05_Moderado">
+        <di:waypoint x="445" y="895"/>
+        <di:waypoint x="445" y="1020"/>
+        <di:waypoint x="520" y="1020"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_06_di" bpmnElement="Flow_RT_06">
+        <di:waypoint x="545" y="755"/>
+        <di:waypoint x="545" y="730"/>
+        <di:waypoint x="620" y="730"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_07_di" bpmnElement="Flow_RT_07">
+        <di:waypoint x="545" y="805"/>
+        <di:waypoint x="545" y="840"/>
+        <di:waypoint x="620" y="840"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_08_di" bpmnElement="Flow_RT_08">
+        <di:waypoint x="720" y="730"/>
+        <di:waypoint x="795" y="730"/>
+        <di:waypoint x="795" y="755"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_09_di" bpmnElement="Flow_RT_09">
+        <di:waypoint x="720" y="840"/>
+        <di:waypoint x="795" y="840"/>
+        <di:waypoint x="795" y="805"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_10_di" bpmnElement="Flow_RT_10">
+        <di:waypoint x="820" y="780"/>
+        <di:waypoint x="870" y="780"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_End_di" bpmnElement="Flow_RT_End">
+        <di:waypoint x="906" y="780"/>
+        <di:waypoint x="939" y="780"/>
+        <di:waypoint x="939" y="890"/>
+        <di:waypoint x="972" y="890"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_11_di" bpmnElement="Flow_RT_11">
+        <di:waypoint x="620" y="910"/>
+        <di:waypoint x="796" y="910"/>
+        <di:waypoint x="796" y="890"/>
+        <di:waypoint x="972" y="890"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_RT_12_di" bpmnElement="Flow_RT_12">
+        <di:waypoint x="620" y="1020"/>
+        <di:waypoint x="796" y="1020"/>
+        <di:waypoint x="796" y="890"/>
+        <di:waypoint x="972" y="890"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

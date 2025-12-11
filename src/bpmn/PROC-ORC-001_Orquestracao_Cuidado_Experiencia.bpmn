@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_Orquestrador"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.0.0">
+
+  <bpmn:message id="Msg_BeneficiarioAdicionado" name="Msg_BeneficiarioAdicionado"/>
+  <bpmn:message id="Msg_InteracaoRecebida" name="Msg_InteracaoRecebida"/>
+  <bpmn:message id="Msg_ContratoCancelado" name="Msg_ContratoCancelado"/>
+  <bpmn:message id="Msg_ObitoBeneficiario" name="Msg_ObitoBeneficiario"/>
+  <bpmn:message id="Msg_JornadaEncerrada" name="Msg_JornadaEncerrada"/>
+
+  <bpmn:signal id="Signal_ElegivelProgramaCronico" name="Signal_ElegivelProgramaCronico"/>
+  <bpmn:signal id="Signal_FraudeDetectada" name="Signal_FraudeDetectada"/>
+  <bpmn:signal id="Signal_AtivarMotorProativo" name="Signal_AtivarMotorProativo"/>
+
+  <bpmn:error id="Error_OnboardingFailed" errorCode="ERR_ONBOARDING_FAILED" name="Onboarding Failed"/>
+
+  <bpmn:process id="PROC-ORC-001" name="Orquestração do Cuidado e Experiência do Beneficiário"
+                isExecutable="true" camunda:historyTimeToLive="365" camunda:versionTag="2.0">
+
+    <bpmn:extensionElements>
+      <camunda:properties>
+        <camunda:property name="jobRetryTimeCycle" value="R3/PT5M"/>
+      </camunda:properties>
+    </bpmn:extensionElements>
+
+    <!-- START: Message Event - Nova Adesão -->
+    <bpmn:startEvent id="StartEvent_NovaAdesao" name="Nova Adesão Confirmada">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_BeneficiarioAdicionado"/>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Inicializar Contexto -->
+    <bpmn:serviceTask id="Task_InicializarContexto" name="Inicializar Contexto do Beneficiário"
+                      camunda:delegateExpression="${contextoService.inicializar}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="beneficiarioId">${beneficiarioId}</camunda:inputParameter>
+          <camunda:inputParameter name="contratoId">${contratoId}</camunda:inputParameter>
+          <camunda:outputParameter name="estadoBeneficiario">NOVO</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Call Activity: SUB-001 Onboarding -->
+    <bpmn:callActivity id="CallActivity_SUB001" name="Executar SUB-001: Onboarding"
+                       calledElement="SUB-001_Onboarding_Screening">
+      <bpmn:extensionElements>
+        <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+        <camunda:in source="contratoId" target="contratoId"/>
+        <camunda:in source="dadosCadastrais" target="dadosCadastrais"/>
+        <camunda:out source="perfilSaudeCompleto" target="perfilSaudeCompleto"/>
+        <camunda:out source="scoreRisco" target="scoreRisco"/>
+        <camunda:out source="classificacaoRisco" target="classificacaoRisco"/>
+        <camunda:out source="statusCPT" target="statusCPT"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Boundary Error Event on Onboarding -->
+    <bpmn:boundaryEvent id="BoundaryError_OnboardingFailed" name="Onboarding Failed"
+                        attachedToRef="CallActivity_SUB001">
+      <bpmn:outgoing>Flow_Error_01</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_OnboardingFailed"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Tratamento Falha Onboarding -->
+    <bpmn:serviceTask id="Task_TratarFalhaOnboarding" name="Tratamento Falha Onboarding"
+                      camunda:delegateExpression="${onboardingFalhaService.tratar}">
+      <bpmn:incoming>Flow_Error_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_Error_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event: Error -->
+    <bpmn:endEvent id="EndEvent_OnboardingError" name="Onboarding Não Concluído">
+      <bpmn:incoming>Flow_Error_End</bpmn:incoming>
+      <bpmn:errorEventDefinition/>
+    </bpmn:endEvent>
+
+    <!-- Service Task: Atualizar Estado ATIVO -->
+    <bpmn:serviceTask id="Task_AtualizarEstadoAtivo" name="Atualizar Estado: ATIVO"
+                      camunda:delegateExpression="${contextoService.atualizarEstado}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="novoEstado">ATIVO</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway: Fork -->
+    <bpmn:parallelGateway id="Gateway_Fork_AtivarProcessos" name="Ativar Processos Paralelos">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05_MotorProativo</bpmn:outgoing>
+      <bpmn:outgoing>Flow_06_Listener</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Signal Throw: Ativar Motor Proativo -->
+    <bpmn:intermediateThrowEvent id="Event_AtivarMotorProativo" name="Ativar SUB-002 Motor Proativo">
+      <bpmn:incoming>Flow_05_MotorProativo</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_AtivarMotorProativo"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- EVENT SUBPROCESS: Listener de Interações (non-interrupting) -->
+    <bpmn:subProcess id="SubProcess_ListenerInteracoes" name="Listener de Interações"
+                     triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_InteracaoListener" name="Interação Recebida" isInterrupting="false">
+        <bpmn:outgoing>Flow_Listener_01</bpmn:outgoing>
+        <bpmn:messageEventDefinition messageRef="Msg_InteracaoRecebida"/>
+      </bpmn:startEvent>
+
+      <bpmn:callActivity id="CallActivity_SUB003" name="SUB-003: Recepção"
+                         calledElement="SUB-003_Recepcao_Classificacao">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+          <camunda:in source="interacaoId" target="interacaoId"/>
+          <camunda:in source="canalOrigem" target="canalOrigem"/>
+          <camunda:in source="mensagemOriginal" target="mensagemOriginal"/>
+          <camunda:out source="demandaResolvida" target="demandaResolvida"/>
+          <camunda:out source="camadaDestino" target="camadaDestino"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_Listener_01</bpmn:incoming>
+        <bpmn:outgoing>Flow_Listener_02</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:endEvent id="EndEvent_InteracaoProcessada" name="Interação Processada">
+        <bpmn:incoming>Flow_Listener_02</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_Listener_01" sourceRef="StartEvent_InteracaoListener" targetRef="CallActivity_SUB003"/>
+      <bpmn:sequenceFlow id="Flow_Listener_02" sourceRef="CallActivity_SUB003" targetRef="EndEvent_InteracaoProcessada"/>
+    </bpmn:subProcess>
+
+    <!-- EVENT SUBPROCESS: Elegibilidade Programa de Crônicos (non-interrupting) -->
+    <bpmn:subProcess id="SubProcess_ElegibilidadeCronicos" name="Elegibilidade Programa Crônicos"
+                     triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_ElegivelCronico" name="Elegível Programa Crônico" isInterrupting="false">
+        <bpmn:outgoing>Flow_Cronico_01</bpmn:outgoing>
+        <bpmn:signalEventDefinition signalRef="Signal_ElegivelProgramaCronico"/>
+      </bpmn:startEvent>
+
+      <bpmn:exclusiveGateway id="Gateway_JaEmPrograma" name="Já está em programa?">
+        <bpmn:incoming>Flow_Cronico_01</bpmn:incoming>
+        <bpmn:outgoing>Flow_Cronico_02_Nao</bpmn:outgoing>
+        <bpmn:outgoing>Flow_Cronico_03_Sim</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:callActivity id="CallActivity_SUB008" name="SUB-008: Gestão Crônicos"
+                         calledElement="SUB-008_Gestao_Cronicos">
+        <bpmn:extensionElements>
+          <camunda:in source="beneficiarioId" target="beneficiarioId"/>
+          <camunda:in source="condicoesCronicas" target="condicoesCronicas"/>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_Cronico_02_Nao</bpmn:incoming>
+        <bpmn:outgoing>Flow_Cronico_04</bpmn:outgoing>
+      </bpmn:callActivity>
+
+      <bpmn:serviceTask id="Task_AtualizarPrograma" name="Atualizar Programa Existente"
+                        camunda:delegateExpression="${programaCronicoService.atualizar}">
+        <bpmn:incoming>Flow_Cronico_03_Sim</bpmn:incoming>
+        <bpmn:outgoing>Flow_Cronico_05</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_CronicoProcessado" name="Programa Atualizado">
+        <bpmn:incoming>Flow_Cronico_04</bpmn:incoming>
+        <bpmn:incoming>Flow_Cronico_05</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_Cronico_01" sourceRef="StartEvent_ElegivelCronico" targetRef="Gateway_JaEmPrograma"/>
+      <bpmn:sequenceFlow id="Flow_Cronico_02_Nao" name="NÃO" sourceRef="Gateway_JaEmPrograma" targetRef="CallActivity_SUB008">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!emProgramaCronico}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_Cronico_03_Sim" name="SIM" sourceRef="Gateway_JaEmPrograma" targetRef="Task_AtualizarPrograma">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${emProgramaCronico}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_Cronico_04" sourceRef="CallActivity_SUB008" targetRef="EndEvent_CronicoProcessado"/>
+      <bpmn:sequenceFlow id="Flow_Cronico_05" sourceRef="Task_AtualizarPrograma" targetRef="EndEvent_CronicoProcessado"/>
+    </bpmn:subProcess>
+
+    <!-- EVENT SUBPROCESS: Cancelamento de Contrato (interrupting) -->
+    <bpmn:subProcess id="SubProcess_Cancelamento" name="Cancelamento de Contrato"
+                     triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_Cancelamento" name="Contrato Cancelado" isInterrupting="true">
+        <bpmn:outgoing>Flow_Cancel_01</bpmn:outgoing>
+        <bpmn:messageEventDefinition messageRef="Msg_ContratoCancelado"/>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="Task_EncerrarProcessosAtivos" name="Encerrar Todos Processos Ativos"
+                        camunda:delegateExpression="${processoService.encerrarTodos}">
+        <bpmn:incoming>Flow_Cancel_01</bpmn:incoming>
+        <bpmn:outgoing>Flow_Cancel_02</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:serviceTask id="Task_AtualizarEstadoInativo" name="Atualizar Estado: INATIVO"
+                        camunda:delegateExpression="${contextoService.atualizarEstado}">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="novoEstado">INATIVO</camunda:inputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_Cancel_02</bpmn:incoming>
+        <bpmn:outgoing>Flow_Cancel_03</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_Cancelamento" name="Processo Terminado">
+        <bpmn:incoming>Flow_Cancel_03</bpmn:incoming>
+        <bpmn:terminateEventDefinition/>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_Cancel_01" sourceRef="StartEvent_Cancelamento" targetRef="Task_EncerrarProcessosAtivos"/>
+      <bpmn:sequenceFlow id="Flow_Cancel_02" sourceRef="Task_EncerrarProcessosAtivos" targetRef="Task_AtualizarEstadoInativo"/>
+      <bpmn:sequenceFlow id="Flow_Cancel_03" sourceRef="Task_AtualizarEstadoInativo" targetRef="EndEvent_Cancelamento"/>
+    </bpmn:subProcess>
+
+    <!-- EVENT SUBPROCESS: Óbito do Beneficiário (interrupting) -->
+    <bpmn:subProcess id="SubProcess_Obito" name="Óbito do Beneficiário"
+                     triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_Obito" name="Óbito Beneficiário" isInterrupting="true">
+        <bpmn:outgoing>Flow_Obito_01</bpmn:outgoing>
+        <bpmn:messageEventDefinition messageRef="Msg_ObitoBeneficiario"/>
+      </bpmn:startEvent>
+
+      <bpmn:parallelGateway id="Gateway_Fork_Obito" name="Fork">
+        <bpmn:incoming>Flow_Obito_01</bpmn:incoming>
+        <bpmn:outgoing>Flow_Obito_02</bpmn:outgoing>
+        <bpmn:outgoing>Flow_Obito_03</bpmn:outgoing>
+      </bpmn:parallelGateway>
+
+      <bpmn:serviceTask id="Task_EncerrarProcessos" name="Encerrar Processos"
+                        camunda:delegateExpression="${processoService.encerrarTodos}">
+        <bpmn:incoming>Flow_Obito_02</bpmn:incoming>
+        <bpmn:outgoing>Flow_Obito_04</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:userTask id="UserTask_ContatoFamilia" name="Contato com Família"
+                     camunda:candidateGroups="atendimento_especial">
+        <bpmn:incoming>Flow_Obito_03</bpmn:incoming>
+        <bpmn:outgoing>Flow_Obito_05</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:parallelGateway id="Gateway_Join_Obito" name="Join">
+        <bpmn:incoming>Flow_Obito_04</bpmn:incoming>
+        <bpmn:incoming>Flow_Obito_05</bpmn:incoming>
+        <bpmn:outgoing>Flow_Obito_06</bpmn:outgoing>
+      </bpmn:parallelGateway>
+
+      <bpmn:endEvent id="EndEvent_Obito" name="Processo Terminado">
+        <bpmn:incoming>Flow_Obito_06</bpmn:incoming>
+        <bpmn:terminateEventDefinition/>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_Obito_01" sourceRef="StartEvent_Obito" targetRef="Gateway_Fork_Obito"/>
+      <bpmn:sequenceFlow id="Flow_Obito_02" sourceRef="Gateway_Fork_Obito" targetRef="Task_EncerrarProcessos"/>
+      <bpmn:sequenceFlow id="Flow_Obito_03" sourceRef="Gateway_Fork_Obito" targetRef="UserTask_ContatoFamilia"/>
+      <bpmn:sequenceFlow id="Flow_Obito_04" sourceRef="Task_EncerrarProcessos" targetRef="Gateway_Join_Obito"/>
+      <bpmn:sequenceFlow id="Flow_Obito_05" sourceRef="UserTask_ContatoFamilia" targetRef="Gateway_Join_Obito"/>
+      <bpmn:sequenceFlow id="Flow_Obito_06" sourceRef="Gateway_Join_Obito" targetRef="EndEvent_Obito"/>
+    </bpmn:subProcess>
+
+    <!-- EVENT SUBPROCESS: Detecção de Fraude (interrupting) -->
+    <bpmn:subProcess id="SubProcess_Fraude" name="Detecção de Fraude"
+                     triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_Fraude" name="Fraude Detectada" isInterrupting="true">
+        <bpmn:outgoing>Flow_Fraude_01</bpmn:outgoing>
+        <bpmn:signalEventDefinition signalRef="Signal_FraudeDetectada"/>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="Task_SuspenderProcessos" name="Suspender Todos Processos"
+                        camunda:delegateExpression="${processoService.suspenderTodos}">
+        <bpmn:incoming>Flow_Fraude_01</bpmn:incoming>
+        <bpmn:outgoing>Flow_Fraude_02</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:userTask id="UserTask_AnaliseFraude" name="Análise de Fraude (Compliance)"
+                     camunda:candidateGroups="compliance">
+        <bpmn:incoming>Flow_Fraude_02</bpmn:incoming>
+        <bpmn:outgoing>Flow_Fraude_03</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:exclusiveGateway id="Gateway_FraudeConfirmada" name="Fraude confirmada?">
+        <bpmn:incoming>Flow_Fraude_03</bpmn:incoming>
+        <bpmn:outgoing>Flow_Fraude_04_Sim</bpmn:outgoing>
+        <bpmn:outgoing>Flow_Fraude_05_Nao</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:endEvent id="EndEvent_FraudeTerminate" name="Fim + Notif. Legal">
+        <bpmn:incoming>Flow_Fraude_04_Sim</bpmn:incoming>
+        <bpmn:terminateEventDefinition/>
+      </bpmn:endEvent>
+
+      <bpmn:serviceTask id="Task_ReativarProcessos" name="Reativar Processos"
+                        camunda:delegateExpression="${processoService.reativarTodos}">
+        <bpmn:incoming>Flow_Fraude_05_Nao</bpmn:incoming>
+        <bpmn:outgoing>Flow_Fraude_06</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_FraudeFalsoPositivo" name="Falso Positivo">
+        <bpmn:incoming>Flow_Fraude_06</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_Fraude_01" sourceRef="StartEvent_Fraude" targetRef="Task_SuspenderProcessos"/>
+      <bpmn:sequenceFlow id="Flow_Fraude_02" sourceRef="Task_SuspenderProcessos" targetRef="UserTask_AnaliseFraude"/>
+      <bpmn:sequenceFlow id="Flow_Fraude_03" sourceRef="UserTask_AnaliseFraude" targetRef="Gateway_FraudeConfirmada"/>
+      <bpmn:sequenceFlow id="Flow_Fraude_04_Sim" name="SIM" sourceRef="Gateway_FraudeConfirmada" targetRef="EndEvent_FraudeTerminate">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudeConfirmada == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_Fraude_05_Nao" name="NÃO" sourceRef="Gateway_FraudeConfirmada" targetRef="Task_ReativarProcessos">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudeConfirmada == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_Fraude_06" sourceRef="Task_ReativarProcessos" targetRef="EndEvent_FraudeFalsoPositivo"/>
+    </bpmn:subProcess>
+
+    <!-- Receive Task: Aguardar Evento de Encerramento -->
+    <bpmn:receiveTask id="Task_AguardarEncerramento" name="Aguardar Evento de Encerramento"
+                      messageRef="Msg_JornadaEncerrada">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="correlationKey" value="${beneficiarioId}"/>
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_06_Listener</bpmn:incoming>
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <!-- Service Task: Consolidar Métricas -->
+    <bpmn:serviceTask id="Task_ConsolidarMetricas" name="Consolidar Métricas de Jornada"
+                      camunda:delegateExpression="${metricasService.consolidar}">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Alimentar Data Lake -->
+    <bpmn:serviceTask id="Task_AlimentarDataLake" name="Alimentar Data Lake"
+                      camunda:delegateExpression="${dataLakeService.publicarJornadaCompleta}">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- END Event -->
+    <bpmn:endEvent id="EndEvent_JornadaConcluida" name="Jornada Concluída">
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_NovaAdesao" targetRef="Task_InicializarContexto"/>
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_InicializarContexto" targetRef="CallActivity_SUB001"/>
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="CallActivity_SUB001" targetRef="Task_AtualizarEstadoAtivo"/>
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="Task_AtualizarEstadoAtivo" targetRef="Gateway_Fork_AtivarProcessos"/>
+    <bpmn:sequenceFlow id="Flow_05_MotorProativo" sourceRef="Gateway_Fork_AtivarProcessos" targetRef="Event_AtivarMotorProativo"/>
+    <bpmn:sequenceFlow id="Flow_06_Listener" sourceRef="Gateway_Fork_AtivarProcessos" targetRef="Task_AguardarEncerramento"/>
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Event_AtivarMotorProativo" targetRef="Task_AguardarEncerramento"/>
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_AguardarEncerramento" targetRef="Task_ConsolidarMetricas"/>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_ConsolidarMetricas" targetRef="Task_AlimentarDataLake"/>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_AlimentarDataLake" targetRef="EndEvent_JornadaConcluida"/>
+    <bpmn:sequenceFlow id="Flow_Error_01" sourceRef="BoundaryError_OnboardingFailed" targetRef="Task_TratarFalhaOnboarding"/>
+    <bpmn:sequenceFlow id="Flow_Error_End" sourceRef="Task_TratarFalhaOnboarding" targetRef="EndEvent_OnboardingError"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PROC-ORC-001">
+
+      <!-- Main Flow Shapes -->
+      <bpmndi:BPMNShape id="StartEvent_NovaAdesao_di" bpmnElement="StartEvent_NovaAdesao">
+        <dc:Bounds x="172" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="148" y="145" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_InicializarContexto_di" bpmnElement="Task_InicializarContexto">
+        <dc:Bounds x="280" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB001_di" bpmnElement="CallActivity_SUB001">
+        <dc:Bounds x="450" y="75" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BoundaryError_OnboardingFailed_di" bpmnElement="BoundaryError_OnboardingFailed">
+        <dc:Bounds x="545" y="147" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_TratarFalhaOnboarding_di" bpmnElement="Task_TratarFalhaOnboarding">
+        <dc:Bounds x="620" y="190" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_OnboardingError_di" bpmnElement="EndEvent_OnboardingError">
+        <dc:Bounds x="782" y="212" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarEstadoAtivo_di" bpmnElement="Task_AtualizarEstadoAtivo">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Fork_AtivarProcessos_di" bpmnElement="Gateway_Fork_AtivarProcessos">
+        <dc:Bounds x="825" y="95" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_AtivarMotorProativo_di" bpmnElement="Event_AtivarMotorProativo">
+        <dc:Bounds x="952" y="52" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AguardarEncerramento_di" bpmnElement="Task_AguardarEncerramento">
+        <dc:Bounds x="1050" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConsolidarMetricas_di" bpmnElement="Task_ConsolidarMetricas">
+        <dc:Bounds x="1220" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AlimentarDataLake_di" bpmnElement="Task_AlimentarDataLake">
+        <dc:Bounds x="1390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_JornadaConcluida_di" bpmnElement="EndEvent_JornadaConcluida">
+        <dc:Bounds x="1562" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Event SubProcess: Listener de Interações -->
+      <bpmndi:BPMNShape id="SubProcess_ListenerInteracoes_di" bpmnElement="SubProcess_ListenerInteracoes" isExpanded="true">
+        <dc:Bounds x="160" y="300" width="600" height="200"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_InteracaoListener_di" bpmnElement="StartEvent_InteracaoListener">
+        <dc:Bounds x="200" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB003_di" bpmnElement="CallActivity_SUB003">
+        <dc:Bounds x="300" y="355" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_InteracaoProcessada_di" bpmnElement="EndEvent_InteracaoProcessada">
+        <dc:Bounds x="522" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Event SubProcess: Elegibilidade Crônicos -->
+      <bpmndi:BPMNShape id="SubProcess_ElegibilidadeCronicos_di" bpmnElement="SubProcess_ElegibilidadeCronicos" isExpanded="true">
+        <dc:Bounds x="160" y="550" width="800" height="280"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_ElegivelCronico_di" bpmnElement="StartEvent_ElegivelCronico">
+        <dc:Bounds x="200" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_JaEmPrograma_di" bpmnElement="Gateway_JaEmPrograma">
+        <dc:Bounds x="295" y="665" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="CallActivity_SUB008_di" bpmnElement="CallActivity_SUB008">
+        <dc:Bounds x="410" y="600" width="130" height="90"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarPrograma_di" bpmnElement="Task_AtualizarPrograma">
+        <dc:Bounds x="410" y="720" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_CronicoProcessado_di" bpmnElement="EndEvent_CronicoProcessado">
+        <dc:Bounds x="622" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Event SubProcess: Cancelamento -->
+      <bpmndi:BPMNShape id="SubProcess_Cancelamento_di" bpmnElement="SubProcess_Cancelamento" isExpanded="true">
+        <dc:Bounds x="160" y="880" width="700" height="200"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_Cancelamento_di" bpmnElement="StartEvent_Cancelamento">
+        <dc:Bounds x="200" y="962" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EncerrarProcessosAtivos_di" bpmnElement="Task_EncerrarProcessosAtivos">
+        <dc:Bounds x="300" y="940" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AtualizarEstadoInativo_di" bpmnElement="Task_AtualizarEstadoInativo">
+        <dc:Bounds x="470" y="940" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Cancelamento_di" bpmnElement="EndEvent_Cancelamento">
+        <dc:Bounds x="642" y="962" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Event SubProcess: Óbito -->
+      <bpmndi:BPMNShape id="SubProcess_Obito_di" bpmnElement="SubProcess_Obito" isExpanded="true">
+        <dc:Bounds x="160" y="1130" width="800" height="260"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_Obito_di" bpmnElement="StartEvent_Obito">
+        <dc:Bounds x="200" y="1242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Fork_Obito_di" bpmnElement="Gateway_Fork_Obito">
+        <dc:Bounds x="295" y="1235" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_EncerrarProcessos_di" bpmnElement="Task_EncerrarProcessos">
+        <dc:Bounds x="410" y="1170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_ContatoFamilia_di" bpmnElement="UserTask_ContatoFamilia">
+        <dc:Bounds x="410" y="1280" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Join_Obito_di" bpmnElement="Gateway_Join_Obito">
+        <dc:Bounds x="575" y="1235" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Obito_di" bpmnElement="EndEvent_Obito">
+        <dc:Bounds x="692" y="1242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Event SubProcess: Fraude -->
+      <bpmndi:BPMNShape id="SubProcess_Fraude_di" bpmnElement="SubProcess_Fraude" isExpanded="true">
+        <dc:Bounds x="160" y="1440" width="900" height="300"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_Fraude_di" bpmnElement="StartEvent_Fraude">
+        <dc:Bounds x="200" y="1572" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_SuspenderProcessos_di" bpmnElement="Task_SuspenderProcessos">
+        <dc:Bounds x="300" y="1550" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="UserTask_AnaliseFraude_di" bpmnElement="UserTask_AnaliseFraude">
+        <dc:Bounds x="470" y="1550" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_FraudeConfirmada_di" bpmnElement="Gateway_FraudeConfirmada">
+        <dc:Bounds x="645" y="1565" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_FraudeTerminate_di" bpmnElement="EndEvent_FraudeTerminate">
+        <dc:Bounds x="762" y="1492" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ReativarProcessos_di" bpmnElement="Task_ReativarProcessos">
+        <dc:Bounds x="760" y="1630" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_FraudeFalsoPositivo_di" bpmnElement="EndEvent_FraudeFalsoPositivo">
+        <dc:Bounds x="932" y="1652" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Flow Sequence Flows (Edges) -->
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="208" y="120"/>
+        <di:waypoint x="280" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="380" y="120"/>
+        <di:waypoint x="450" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="580" y="120"/>
+        <di:waypoint x="650" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="825" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_05_MotorProativo_di" bpmnElement="Flow_05_MotorProativo">
+        <di:waypoint x="850" y="95"/>
+        <di:waypoint x="850" y="70"/>
+        <di:waypoint x="952" y="70"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_06_Listener_di" bpmnElement="Flow_06_Listener">
+        <di:waypoint x="875" y="120"/>
+        <di:waypoint x="1050" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="988" y="70"/>
+        <di:waypoint x="1100" y="70"/>
+        <di:waypoint x="1100" y="80"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="1150" y="120"/>
+        <di:waypoint x="1220" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1320" y="120"/>
+        <di:waypoint x="1390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1490" y="120"/>
+        <di:waypoint x="1562" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Error_01_di" bpmnElement="Flow_Error_01">
+        <di:waypoint x="563" y="183"/>
+        <di:waypoint x="563" y="230"/>
+        <di:waypoint x="620" y="230"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Error_End_di" bpmnElement="Flow_Error_End">
+        <di:waypoint x="720" y="230"/>
+        <di:waypoint x="782" y="230"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Listener Edges -->
+      <bpmndi:BPMNEdge id="Flow_Listener_01_di" bpmnElement="Flow_Listener_01">
+        <di:waypoint x="236" y="400"/>
+        <di:waypoint x="300" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Listener_02_di" bpmnElement="Flow_Listener_02">
+        <di:waypoint x="430" y="400"/>
+        <di:waypoint x="522" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Crônicos Edges -->
+      <bpmndi:BPMNEdge id="Flow_Cronico_01_di" bpmnElement="Flow_Cronico_01">
+        <di:waypoint x="236" y="690"/>
+        <di:waypoint x="295" y="690"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cronico_02_Nao_di" bpmnElement="Flow_Cronico_02_Nao">
+        <di:waypoint x="320" y="665"/>
+        <di:waypoint x="320" y="645"/>
+        <di:waypoint x="410" y="645"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cronico_03_Sim_di" bpmnElement="Flow_Cronico_03_Sim">
+        <di:waypoint x="320" y="715"/>
+        <di:waypoint x="320" y="760"/>
+        <di:waypoint x="410" y="760"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cronico_04_di" bpmnElement="Flow_Cronico_04">
+        <di:waypoint x="540" y="645"/>
+        <di:waypoint x="640" y="645"/>
+        <di:waypoint x="640" y="672"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cronico_05_di" bpmnElement="Flow_Cronico_05">
+        <di:waypoint x="510" y="760"/>
+        <di:waypoint x="640" y="760"/>
+        <di:waypoint x="640" y="708"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Cancelamento Edges -->
+      <bpmndi:BPMNEdge id="Flow_Cancel_01_di" bpmnElement="Flow_Cancel_01">
+        <di:waypoint x="236" y="980"/>
+        <di:waypoint x="300" y="980"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cancel_02_di" bpmnElement="Flow_Cancel_02">
+        <di:waypoint x="400" y="980"/>
+        <di:waypoint x="470" y="980"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Cancel_03_di" bpmnElement="Flow_Cancel_03">
+        <di:waypoint x="570" y="980"/>
+        <di:waypoint x="642" y="980"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Óbito Edges -->
+      <bpmndi:BPMNEdge id="Flow_Obito_01_di" bpmnElement="Flow_Obito_01">
+        <di:waypoint x="236" y="1260"/>
+        <di:waypoint x="295" y="1260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Obito_02_di" bpmnElement="Flow_Obito_02">
+        <di:waypoint x="320" y="1235"/>
+        <di:waypoint x="320" y="1210"/>
+        <di:waypoint x="410" y="1210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Obito_03_di" bpmnElement="Flow_Obito_03">
+        <di:waypoint x="320" y="1285"/>
+        <di:waypoint x="320" y="1320"/>
+        <di:waypoint x="410" y="1320"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Obito_04_di" bpmnElement="Flow_Obito_04">
+        <di:waypoint x="510" y="1210"/>
+        <di:waypoint x="600" y="1210"/>
+        <di:waypoint x="600" y="1235"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Obito_05_di" bpmnElement="Flow_Obito_05">
+        <di:waypoint x="510" y="1320"/>
+        <di:waypoint x="600" y="1320"/>
+        <di:waypoint x="600" y="1285"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Obito_06_di" bpmnElement="Flow_Obito_06">
+        <di:waypoint x="625" y="1260"/>
+        <di:waypoint x="692" y="1260"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SubProcess Fraude Edges -->
+      <bpmndi:BPMNEdge id="Flow_Fraude_01_di" bpmnElement="Flow_Fraude_01">
+        <di:waypoint x="236" y="1590"/>
+        <di:waypoint x="300" y="1590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Fraude_02_di" bpmnElement="Flow_Fraude_02">
+        <di:waypoint x="400" y="1590"/>
+        <di:waypoint x="470" y="1590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Fraude_03_di" bpmnElement="Flow_Fraude_03">
+        <di:waypoint x="570" y="1590"/>
+        <di:waypoint x="645" y="1590"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Fraude_04_Sim_di" bpmnElement="Flow_Fraude_04_Sim">
+        <di:waypoint x="670" y="1565"/>
+        <di:waypoint x="670" y="1510"/>
+        <di:waypoint x="762" y="1510"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Fraude_05_Nao_di" bpmnElement="Flow_Fraude_05_Nao">
+        <di:waypoint x="670" y="1615"/>
+        <di:waypoint x="670" y="1670"/>
+        <di:waypoint x="760" y="1670"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Fraude_06_di" bpmnElement="Flow_Fraude_06">
+        <di:waypoint x="860" y="1670"/>
+        <di:waypoint x="932" y="1670"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
