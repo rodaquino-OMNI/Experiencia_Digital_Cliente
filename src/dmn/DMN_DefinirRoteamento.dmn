@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_DefinirRoteamento"
+             name="Definição de Roteamento"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_DefinirRoteamento" name="Definir Camada de Atendimento">
+    <decisionTable id="DecisionTable_DefinirRoteamento" hitPolicy="FIRST">
+      <input id="Input_Intencao" label="Intenção Detectada" camunda:inputVariable="intencaoDetectada">
+        <inputExpression id="InputExpression_Intencao" typeRef="string">
+          <text>intencaoDetectada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Complexidade" label="Complexidade" camunda:inputVariable="complexidadeInteracao">
+        <inputExpression id="InputExpression_Complexidade" typeRef="string">
+          <text>complexidadeInteracao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_NivelUrgencia" label="Nível de Urgência" camunda:inputVariable="nivelUrgencia">
+        <inputExpression id="InputExpression_NivelUrgencia" typeRef="string">
+          <text>nivelUrgencia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_SentimentoNegativo" label="Sentimento Negativo" camunda:inputVariable="sentimentoNegativo">
+        <inputExpression id="InputExpression_SentimentoNegativo" typeRef="boolean">
+          <text>sentimentoNegativo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ClassificacaoRisco" label="Classificação de Risco" camunda:inputVariable="classificacaoRisco">
+        <inputExpression id="InputExpression_ClassificacaoRisco" typeRef="string">
+          <text>classificacaoRisco</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_CamadaDestino" label="Camada de Destino" name="camadaDestino" typeRef="string"/>
+      <output id="Output_TipoSubprocesso" label="Tipo de Subprocesso" name="tipoSubprocesso" typeRef="string"/>
+
+      <!-- Roteamento para NAVEGAÇÃO (SUB-007) -->
+      <rule id="Rule_Navegacao_1">
+        <description>Urgência crítica ou alto risco sempre vai para navegação</description>
+        <inputEntry id="InputEntry_Navegacao_1_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_1_3">
+          <text>"CRITICA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Navegacao_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_1_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Navegacao_1_1">
+          <text>"NAVEGACAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Navegacao_1_2">
+          <text>"SUB-007"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Navegacao_2">
+        <description>Beneficiário complexo + alta urgência</description>
+        <inputEntry id="InputEntry_Navegacao_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_2_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_2_3">
+          <text>"ALTA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Navegacao_2_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_2_5">
+          <text>"COMPLEXO"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Navegacao_2_1">
+          <text>"NAVEGACAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Navegacao_2_2">
+          <text>"SUB-007"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Navegacao_3">
+        <description>Complexidade alta + sentimento negativo</description>
+        <inputEntry id="InputEntry_Navegacao_3_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_3_2">
+          <text>"ALTA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Navegacao_3_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Navegacao_3_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Navegacao_3_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Navegacao_3_1">
+          <text>"NAVEGACAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Navegacao_3_2">
+          <text>"SUB-007"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Roteamento para AUTORIZAÇÃO (SUB-006) -->
+      <rule id="Rule_Autorizacao_1">
+        <description>Intenção de autorização</description>
+        <inputEntry id="InputEntry_Autorizacao_1_1">
+          <text>"solicitar_autorizacao", "autorizar_procedimento", "guia_tiss"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Autorizacao_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Autorizacao_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Autorizacao_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Autorizacao_1_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Autorizacao_1_1">
+          <text>"AUTORIZACAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Autorizacao_1_2">
+          <text>"SUB-006"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Roteamento para AGENTE IA (SUB-005) -->
+      <rule id="Rule_AgenteIA_1">
+        <description>Complexidade média que precisa de agente IA</description>
+        <inputEntry id="InputEntry_AgenteIA_1_1">
+          <text>"duvida_cobertura", "informacao_plano", "rede_credenciada", "segunda_via_carteirinha"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_1_2">
+          <text>"MEDIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_1_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AgenteIA_1_1">
+          <text>"AGENTE_IA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AgenteIA_1_2">
+          <text>"SUB-005"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_AgenteIA_2">
+        <description>Urgência alta mas complexidade baixa</description>
+        <inputEntry id="InputEntry_AgenteIA_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_2_2">
+          <text>"BAIXA", "MEDIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_2_3">
+          <text>"ALTA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_2_4">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AgenteIA_2_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AgenteIA_2_1">
+          <text>"AGENTE_IA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AgenteIA_2_2">
+          <text>"SUB-005"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Roteamento para SELF-SERVICE (SUB-004) -->
+      <rule id="Rule_SelfService_1">
+        <description>Intenções simples que podem ser resolvidas por self-service</description>
+        <inputEntry id="InputEntry_SelfService_1_1">
+          <text>"consultar_saldo", "ver_extrato", "baixar_guia", "agendar_consulta_simples", "cancelar_agendamento", "atualizar_cadastro"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SelfService_1_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SelfService_1_3">
+          <text>"BAIXA", "MEDIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SelfService_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SelfService_1_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_SelfService_1_1">
+          <text>"SELF_SERVICE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_SelfService_1_2">
+          <text>"SUB-004"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_SelfService_2">
+        <description>Baixa complexidade e baixa urgência - default para self-service</description>
+        <inputEntry id="InputEntry_SelfService_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SelfService_2_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SelfService_2_3">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SelfService_2_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SelfService_2_5">
+          <text>"BAIXO", "MODERADO"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_SelfService_2_1">
+          <text>"SELF_SERVICE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_SelfService_2_2">
+          <text>"SUB-004"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback para Agente IA -->
+      <rule id="Rule_Fallback">
+        <description>Fallback para Agente IA quando não se encaixa em nenhuma regra anterior</description>
+        <inputEntry id="InputEntry_Fallback_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_1">
+          <text>"AGENTE_IA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fallback_2">
+          <text>"SUB-005"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

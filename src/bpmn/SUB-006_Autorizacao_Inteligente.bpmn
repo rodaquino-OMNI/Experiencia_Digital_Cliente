@@ -21,7 +21,7 @@
     </bpmn:startEvent>
 
     <bpmn:serviceTask id="Task_ValidarGuiaTISS" name="Validar Guia TISS"
-                      camunda:delegateExpression="${tiss Service.validarGuia}">
+                      camunda:delegateExpression="${tissService.validarGuia}">
       <bpmn:extensionElements>
         <camunda:failedJobRetryTimeCycle>R3/PT1M</camunda:failedJobRetryTimeCycle>
       </bpmn:extensionElements>

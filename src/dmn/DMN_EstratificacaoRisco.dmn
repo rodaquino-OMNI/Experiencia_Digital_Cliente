@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_EstratificacaoRisco"
+             name="Estratificação de Risco"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_EstratificacaoRisco" name="Estratificação de Risco de Saúde">
+    <decisionTable id="DecisionTable_EstratificacaoRisco" hitPolicy="COLLECT" aggregation="SUM">
+      <input id="Input_Idade" label="Idade" camunda:inputVariable="idade">
+        <inputExpression id="InputExpression_Idade" typeRef="integer">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_BMI" label="BMI" camunda:inputVariable="bmi">
+        <inputExpression id="InputExpression_BMI" typeRef="double">
+          <text>bmi</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Comorbidades" label="Quantidade de Comorbidades" camunda:inputVariable="qtdComorbidades">
+        <inputExpression id="InputExpression_Comorbidades" typeRef="integer">
+          <text>qtdComorbidades</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_HistoricoFamiliar" label="Histórico Familiar" camunda:inputVariable="historicoFamiliarPositivo">
+        <inputExpression id="InputExpression_HistoricoFamiliar" typeRef="boolean">
+          <text>historicoFamiliarPositivo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Tabagista" label="Tabagista" camunda:inputVariable="tabagista">
+        <inputExpression id="InputExpression_Tabagista" typeRef="boolean">
+          <text>tabagista</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Sedentario" label="Sedentário" camunda:inputVariable="sedentario">
+        <inputExpression id="InputExpression_Sedentario" typeRef="boolean">
+          <text>sedentario</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_ScoreRisco" label="Score de Risco" name="scoreRiscoParcial" typeRef="integer"/>
+
+      <!-- Regras baseadas em idade -->
+      <rule id="Rule_Idade_1">
+        <inputEntry id="InputEntry_Idade_1_1">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Idade_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_1_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_1_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Idade_1">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Idade_2">
+        <inputEntry id="InputEntry_Idade_2_1">
+          <text>[30..50]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Idade_2_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_2_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_2_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_2_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_2_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Idade_2">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Idade_3">
+        <inputEntry id="InputEntry_Idade_3_1">
+          <text>[51..65]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Idade_3_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_3_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_3_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_3_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_3_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Idade_3">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Idade_4">
+        <inputEntry id="InputEntry_Idade_4_1">
+          <text>&gt; 65</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Idade_4_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_4_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_4_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_4_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Idade_4_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Idade_4">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regras baseadas em BMI -->
+      <rule id="Rule_BMI_1">
+        <inputEntry id="InputEntry_BMI_1_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_1_2">
+          <text>&lt; 25</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BMI_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_1_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_1_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_BMI_1">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_BMI_2">
+        <inputEntry id="InputEntry_BMI_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_2_2">
+          <text>[25..30]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BMI_2_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_2_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_2_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_2_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_BMI_2">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_BMI_3">
+        <inputEntry id="InputEntry_BMI_3_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_3_2">
+          <text>&gt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BMI_3_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_3_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_3_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BMI_3_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_BMI_3">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regras baseadas em comorbidades -->
+      <rule id="Rule_Comorbidades_1">
+        <inputEntry id="InputEntry_Comorbidades_1_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_1_3">
+          <text>0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_1_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_1_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_1_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_1">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Comorbidades_2">
+        <inputEntry id="InputEntry_Comorbidades_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_2_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_2_3">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_2_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_2_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_2_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_2">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Comorbidades_3">
+        <inputEntry id="InputEntry_Comorbidades_3_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_3_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_3_3">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_3_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_3_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_3_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_3">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regras baseadas em histórico familiar -->
+      <rule id="Rule_HistoricoFamiliar">
+        <inputEntry id="InputEntry_HistoricoFamiliar_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_HistoricoFamiliar_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_HistoricoFamiliar_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_HistoricoFamiliar_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_HistoricoFamiliar_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_HistoricoFamiliar_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_HistoricoFamiliar">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regras baseadas em tabagismo -->
+      <rule id="Rule_Tabagista">
+        <inputEntry id="InputEntry_Tabagista_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Tabagista_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Tabagista_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Tabagista_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Tabagista_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Tabagista_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Tabagista">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regras baseadas em sedentarismo -->
+      <rule id="Rule_Sedentario">
+        <inputEntry id="InputEntry_Sedentario_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Sedentario_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Sedentario_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Sedentario_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Sedentario_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Sedentario_6">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Sedentario">
+          <text>5</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="DMN_ClassificacaoRisco" name="Classificação de Risco">
+    <informationRequirement id="InfoReq_1">
+      <requiredDecision href="#DMN_EstratificacaoRisco"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_ClassificacaoRisco" hitPolicy="FIRST">
+      <input id="Input_ScoreTotal" label="Score de Risco Total">
+        <inputExpression id="InputExpression_ScoreTotal" typeRef="integer">
+          <text>scoreRisco</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_Classificacao" label="Classificação" name="classificacaoRisco" typeRef="string"/>
+
+      <rule id="Rule_Complexo">
+        <inputEntry id="InputEntry_Complexo">
+          <text>[76..100]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Complexo">
+          <text>"COMPLEXO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alto">
+        <inputEntry id="InputEntry_Alto">
+          <text>[51..75]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Alto">
+          <text>"ALTO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Moderado">
+        <inputEntry id="InputEntry_Moderado">
+          <text>[26..50]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Moderado">
+          <text>"MODERADO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Baixo">
+        <inputEntry id="InputEntry_Baixo">
+          <text>[0..25]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Baixo">
+          <text>"BAIXO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

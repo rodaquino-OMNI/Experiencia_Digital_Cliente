@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_DeteccaoCPT"
+             name="Detecção de Condições Pré-Existentes"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_DeteccaoCPT" name="Detectar Condições Pré-Existentes (CPT)">
+    <decisionTable id="DecisionTable_DeteccaoCPT" hitPolicy="COLLECT" aggregation="MAX">
+      <input id="Input_CondicaoSaude" label="Condição de Saúde Declarada" camunda:inputVariable="condicaoDeclarada">
+        <inputExpression id="InputExpression_CondicaoSaude" typeRef="string">
+          <text>condicaoDeclarada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TempoCondicao" label="Tempo da Condição (meses)" camunda:inputVariable="tempoCondicao">
+        <inputExpression id="InputExpression_TempoCondicao" typeRef="integer">
+          <text>tempoCondicao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_UsaMedicacao" label="Usa Medicação Contínua" camunda:inputVariable="usaMedicacao">
+        <inputExpression id="InputExpression_UsaMedicacao" typeRef="boolean">
+          <text>usaMedicacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_HistoricoInternacao" label="Histórico de Internação" camunda:inputVariable="historicoInternacao">
+        <inputExpression id="InputExpression_HistoricoInternacao" typeRef="boolean">
+          <text>historicoInternacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_BMI" label="Índice de Massa Corporal (BMI)" camunda:inputVariable="bmi">
+        <inputExpression id="InputExpression_BMI" typeRef="double">
+          <text>bmi</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_NivelConfianca" label="Nível de Confiança CPT (%)" name="nivelConfiancaCPT" typeRef="integer"/>
+
+      <!-- Doenças Crônicas Declaradas -->
+      <rule id="Rule_CPT_Diabetes">
+        <description>Diabetes declarada</description>
+        <inputEntry id="InputEntry_CPT_Diabetes_1">
+          <text>"diabetes", "diabético", "glicose alta", "insulina"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Diabetes_2">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Diabetes_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Diabetes_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Diabetes_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Diabetes">
+          <text>90</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Hipertensao">
+        <description>Hipertensão declarada</description>
+        <inputEntry id="InputEntry_CPT_Hipertensao_1">
+          <text>"hipertensão", "pressão alta", "hipertenso"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Hipertensao_2">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Hipertensao_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Hipertensao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Hipertensao_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Hipertensao">
+          <text>90</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Cardiopatia">
+        <description>Doença cardíaca declarada</description>
+        <inputEntry id="InputEntry_CPT_Cardiopatia_1">
+          <text>"cardiopatia", "coração", "infarto prévio", "angina", "arritmia"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cardiopatia_2">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cardiopatia_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cardiopatia_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cardiopatia_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Cardiopatia">
+          <text>95</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Cancer">
+        <description>Histórico de câncer</description>
+        <inputEntry id="InputEntry_CPT_Cancer_1">
+          <text>"câncer", "tumor", "oncologia", "quimioterapia", "radioterapia"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cancer_2">
+          <text>&gt;= 0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Cancer_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Cancer_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Cancer_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Cancer">
+          <text>100</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Asma">
+        <description>Asma ou doença respiratória crônica</description>
+        <inputEntry id="InputEntry_CPT_Asma_1">
+          <text>"asma", "bronquite", "DPOC", "enfisema", "respiratório"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Asma_2">
+          <text>&gt;= 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Asma_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Asma_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Asma_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Asma">
+          <text>85</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Obesidade">
+        <description>Obesidade grave (BMI &gt; 35)</description>
+        <inputEntry id="InputEntry_CPT_Obesidade_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Obesidade_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Obesidade_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Obesidade_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Obesidade_5">
+          <text>&gt; 35</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_CPT_Obesidade">
+          <text>70</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Artrite">
+        <description>Artrite ou doença reumática</description>
+        <inputEntry id="InputEntry_CPT_Artrite_1">
+          <text>"artrite", "artrose", "reumatismo", "dor crônica", "lupus"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Artrite_2">
+          <text>&gt;= 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Artrite_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Artrite_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Artrite_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Artrite">
+          <text>80</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_CPT_Neurologica">
+        <description>Doença neurológica</description>
+        <inputEntry id="InputEntry_CPT_Neurologica_1">
+          <text>"epilepsia", "Parkinson", "Alzheimer", "esclerose", "AVC prévio"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Neurologica_2">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CPT_Neurologica_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Neurologica_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CPT_Neurologica_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_CPT_Neurologica">
+          <text>95</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="DMN_StatusCPT" name="Determinar Status CPT">
+    <informationRequirement id="InfoReq_CPT">
+      <requiredDecision href="#DMN_DeteccaoCPT"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_StatusCPT" hitPolicy="FIRST">
+      <input id="Input_NivelConfianca" label="Nível de Confiança CPT (%)">
+        <inputExpression id="InputExpression_NivelConfianca" typeRef="integer">
+          <text>nivelConfiancaCPT</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_StatusCPT" label="Status CPT" name="statusCPT" typeRef="string"/>
+      <output id="Output_AcaoNecessaria" label="Ação Necessária" name="acaoNecessaria" typeRef="string"/>
+
+      <rule id="Rule_Status_CPT_Provavel">
+        <description>CPT provável - requer validação médica imediata</description>
+        <inputEntry id="InputEntry_Status_Provavel">
+          <text>&gt;= 85</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Status_Provavel_1">
+          <text>"CPT_PROVAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Status_Provavel_2">
+          <text>"VALIDACAO_MEDICA_OBRIGATORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Status_Suspeita_Alta">
+        <description>Suspeita alta - investigação necessária</description>
+        <inputEntry id="InputEntry_Status_Suspeita_Alta">
+          <text>[60..84]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Status_Suspeita_Alta_1">
+          <text>"SUSPEITA_ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Status_Suspeita_Alta_2">
+          <text>"INVESTIGACAO_DETALHADA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Status_Suspeita_Baixa">
+        <description>Suspeita baixa - monitoramento</description>
+        <inputEntry id="InputEntry_Status_Suspeita_Baixa">
+          <text>[30..59]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Status_Suspeita_Baixa_1">
+          <text>"SUSPEITA_BAIXA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Status_Suspeita_Baixa_2">
+          <text>"MONITORAMENTO_PERIODICO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Status_Sem_CPT">
+        <description>Sem evidências de CPT</description>
+        <inputEntry id="InputEntry_Status_Sem_CPT">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Status_Sem_CPT_1">
+          <text>"SEM_CPT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Status_Sem_CPT_2">
+          <text>"NENHUMA"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

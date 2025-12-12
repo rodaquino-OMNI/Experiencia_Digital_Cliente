@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_ClassificarUrgencia"
+             name="Classificação de Urgência"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_ClassificarUrgencia" name="Classificar Nível de Urgência">
+    <decisionTable id="DecisionTable_ClassificarUrgencia" hitPolicy="FIRST">
+      <input id="Input_PalavrasChave" label="Palavras-chave Detectadas" camunda:inputVariable="palavrasChaveUrgencia">
+        <inputExpression id="InputExpression_PalavrasChave" typeRef="string">
+          <text>palavrasChaveUrgencia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_SentimentoNegativo" label="Sentimento Negativo" camunda:inputVariable="sentimentoNegativo">
+        <inputExpression id="InputExpression_SentimentoNegativo" typeRef="boolean">
+          <text>sentimentoNegativo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ClassificacaoRisco" label="Classificação de Risco do Beneficiário" camunda:inputVariable="classificacaoRisco">
+        <inputExpression id="InputExpression_ClassificacaoRisco" typeRef="string">
+          <text>classificacaoRisco</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TentativasAnteriores" label="Tentativas de Contato Anteriores" camunda:inputVariable="tentativasAnteriores">
+        <inputExpression id="InputExpression_TentativasAnteriores" typeRef="integer">
+          <text>tentativasAnteriores</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_NivelUrgencia" label="Nível de Urgência" name="nivelUrgencia" typeRef="string"/>
+      <output id="Output_SLA" label="SLA de Resposta (minutos)" name="slaResposta" typeRef="integer"/>
+
+      <!-- Urgência CRÍTICA -->
+      <rule id="Rule_Critico_1">
+        <description>Palavras de emergência médica</description>
+        <inputEntry id="InputEntry_Critico_1_1">
+          <text>"infarto", "derrame", "AVC", "dor no peito", "falta de ar severa", "sangramento intenso", "convulsão"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critico_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critico_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critico_1_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Critico_1_1">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critico_1_2">
+          <text>5</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Critico_2">
+        <description>Alto risco + sentimento negativo + múltiplas tentativas</description>
+        <inputEntry id="InputEntry_Critico_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critico_2_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critico_2_3">
+          <text>"ALTO", "COMPLEXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critico_2_4">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Critico_2_1">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critico_2_2">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Urgência ALTA -->
+      <rule id="Rule_Alta_1">
+        <description>Palavras de urgência moderada</description>
+        <inputEntry id="InputEntry_Alta_1_1">
+          <text>"dor", "febre alta", "vômito", "tontura", "emergência", "urgente"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_1_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_1_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_1_2">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alta_2">
+        <description>Beneficiário de alto risco com sentimento negativo</description>
+        <inputEntry id="InputEntry_Alta_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_2_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_2_3">
+          <text>"ALTO", "COMPLEXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_2_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_2_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_2_2">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alta_3">
+        <description>Reclamação ou insatisfação</description>
+        <inputEntry id="InputEntry_Alta_3_1">
+          <text>"reclamação", "ouvidoria", "insatisfeito", "processar", "advogado", "ANS"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_3_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_3_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_3_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_3_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_3_2">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Urgência MÉDIA -->
+      <rule id="Rule_Media_1">
+        <description>Consultas ou exames</description>
+        <inputEntry id="InputEntry_Media_1_1">
+          <text>"consulta", "exame", "agendar", "marcar", "autorização"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Media_1_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_1_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_1_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Media_1_1">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_1_2">
+          <text>60</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Media_2">
+        <description>Beneficiário de risco moderado</description>
+        <inputEntry id="InputEntry_Media_2_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_2_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_2_3">
+          <text>"MODERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Media_2_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Media_2_1">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_2_2">
+          <text>120</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Urgência BAIXA (default) -->
+      <rule id="Rule_Baixa">
+        <description>Dúvidas gerais e informações</description>
+        <inputEntry id="InputEntry_Baixa_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Baixa_1">
+          <text>"BAIXA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixa_2">
+          <text>240</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

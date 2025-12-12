@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_FluxoSelfService"
+             name="Roteamento de Fluxo Self-Service"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_FluxoSelfService" name="Determinar Fluxo de Self-Service">
+    <decisionTable id="DecisionTable_FluxoSelfService" hitPolicy="FIRST">
+      <input id="Input_TipoDemanda" label="Tipo de Demanda" camunda:inputVariable="tipoDemanda">
+        <inputExpression id="InputExpression_TipoDemanda" typeRef="string">
+          <text>tipoDemanda</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Complexidade" label="Complexidade Detectada" camunda:inputVariable="complexidade">
+        <inputExpression id="InputExpression_Complexidade" typeRef="string">
+          <text>complexidade</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_PalavrasChave" label="Palavras-chave" camunda:inputVariable="palavrasChave">
+        <inputExpression id="InputExpression_PalavrasChave" typeRef="string">
+          <text>palavrasChave</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_HistoricoFalhas" label="Tentativas Falhas Anteriores" camunda:inputVariable="tentativasFalhas">
+        <inputExpression id="InputExpression_HistoricoFalhas" typeRef="integer">
+          <text>tentativasFalhas</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_CanalRecomendado" label="Canal Recomendado" name="canalRecomendado" typeRef="string"/>
+      <output id="Output_EstrategiaAtendimento" label="Estratégia de Atendimento" name="estrategiaAtendimento" typeRef="string"/>
+      <output id="Output_RecursosNecessarios" label="Recursos Necessários" name="recursosNecessarios" typeRef="string"/>
+
+      <!-- ROTEAMENTO PARA CHATBOT/FAQ -->
+      <rule id="Rule_FAQ_Simples">
+        <description>Consultas simples - FAQ ou Chatbot</description>
+        <inputEntry id="InputEntry_FAQ_Simples_1">
+          <text>"consulta", "dúvida", "informação", "como", "onde", "quando"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_FAQ_Simples_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_FAQ_Simples_3">
+          <text>"rede credenciada", "cobertura", "carência", "horário", "telefone"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_FAQ_Simples_4">
+          <text>&lt;= 1</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_FAQ_Simples_1">
+          <text>"FAQ_CHATBOT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_FAQ_Simples_2">
+          <text>"RESPOSTA_AUTOMATICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_FAQ_Simples_3">
+          <text>"base_conhecimento"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PORTAL SELF-SERVICE -->
+      <rule id="Rule_Portal_Segunda_Via">
+        <description>Segunda via de boleto - Portal</description>
+        <inputEntry id="InputEntry_Portal_Segunda_Via_1">
+          <text>"segunda via", "boleto", "pagamento", "fatura"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Segunda_Via_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Segunda_Via_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Portal_Segunda_Via_4">
+          <text>&lt;= 2</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Portal_Segunda_Via_1">
+          <text>"PORTAL_WEB"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Segunda_Via_2">
+          <text>"AUTOATENDIMENTO_GUIADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Segunda_Via_3">
+          <text>"sistema_financeiro"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Portal_Carteirinha">
+        <description>Carteirinha digital - App/Portal</description>
+        <inputEntry id="InputEntry_Portal_Carteirinha_1">
+          <text>"carteirinha", "cartão", "identificação", "digital"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Carteirinha_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Carteirinha_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Portal_Carteirinha_4">
+          <text>&lt;= 2</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Portal_Carteirinha_1">
+          <text>"APP_MOBILE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Carteirinha_2">
+          <text>"AUTOATENDIMENTO_GUIADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Carteirinha_3">
+          <text>"sistema_cadastro"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Portal_Agendamento">
+        <description>Agendamento de consultas - Portal</description>
+        <inputEntry id="InputEntry_Portal_Agendamento_1">
+          <text>"agendar", "marcar consulta", "agendar exame", "marcação"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Agendamento_2">
+          <text>"BAIXA", "MEDIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Agendamento_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Portal_Agendamento_4">
+          <text>&lt;= 2</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Portal_Agendamento_1">
+          <text>"PORTAL_AGENDAMENTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Agendamento_2">
+          <text>"AUTOATENDIMENTO_GUIADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Agendamento_3">
+          <text>"sistema_agendamento"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ASSISTENTE VIRTUAL COM IA -->
+      <rule id="Rule_IA_Complexidade_Media">
+        <description>Demandas de complexidade média - Assistente Virtual</description>
+        <inputEntry id="InputEntry_IA_Complexidade_Media_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IA_Complexidade_Media_2">
+          <text>"MEDIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_IA_Complexidade_Media_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IA_Complexidade_Media_4">
+          <text>&lt;= 2</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_IA_Complexidade_Media_1">
+          <text>"ASSISTENTE_VIRTUAL_IA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_IA_Complexidade_Media_2">
+          <text>"CONVERSACAO_GUIADA_IA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_IA_Complexidade_Media_3">
+          <text>"modelo_nlp,base_conhecimento"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ESCALONAMENTO PARA HUMANO -->
+      <rule id="Rule_Escalonar_Alta_Complexidade">
+        <description>Alta complexidade - Escalonar para humano</description>
+        <inputEntry id="InputEntry_Escalonar_Alta_Complexidade_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Alta_Complexidade_2">
+          <text>"ALTA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Alta_Complexidade_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Alta_Complexidade_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Alta_Complexidade_1">
+          <text>"ATENDENTE_HUMANO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Alta_Complexidade_2">
+          <text>"TRANSFERENCIA_IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Alta_Complexidade_3">
+          <text>"fila_prioridade"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Escalonar_Multiplas_Falhas">
+        <description>Múltiplas tentativas falhas - Escalonar para humano</description>
+        <inputEntry id="InputEntry_Escalonar_Multiplas_Falhas_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Multiplas_Falhas_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Multiplas_Falhas_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Multiplas_Falhas_4">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Multiplas_Falhas_1">
+          <text>"ATENDENTE_HUMANO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Multiplas_Falhas_2">
+          <text>"TRANSFERENCIA_PRIORIDADE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Multiplas_Falhas_3">
+          <text>"fila_prioridade,historico_interacoes"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Escalonar_Palavras_Criticas">
+        <description>Palavras críticas - Escalonar imediatamente</description>
+        <inputEntry id="InputEntry_Escalonar_Palavras_Criticas_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Palavras_Criticas_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Palavras_Criticas_3">
+          <text>"reclamação", "processar", "advogado", "ANS", "ouvidoria", "cancelamento"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Escalonar_Palavras_Criticas_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Palavras_Criticas_1">
+          <text>"ESPECIALISTA_RETENCAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Palavras_Criticas_2">
+          <text>"TRANSFERENCIA_URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Escalonar_Palavras_Criticas_3">
+          <text>"especialista_ouvidoria,historico_completo"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- AUTORIZAÇÃO E REEMBOLSO -->
+      <rule id="Rule_Portal_Autorizacao">
+        <description>Consulta status de autorização - Portal</description>
+        <inputEntry id="InputEntry_Portal_Autorizacao_1">
+          <text>"autorização", "status", "pedido", "aprovação"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Autorizacao_2">
+          <text>"BAIXA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Portal_Autorizacao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Portal_Autorizacao_4">
+          <text>&lt;= 1</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Portal_Autorizacao_1">
+          <text>"PORTAL_WEB"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Autorizacao_2">
+          <text>"AUTOATENDIMENTO_GUIADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Portal_Autorizacao_3">
+          <text>"sistema_autorizacao"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- DEFAULT - Chatbot primeiro -->
+      <rule id="Rule_Default_Chatbot">
+        <description>Caso padrão - Iniciar com Chatbot</description>
+        <inputEntry id="InputEntry_Default_Chatbot_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Chatbot_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Chatbot_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Chatbot_4"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Default_Chatbot_1">
+          <text>"FAQ_CHATBOT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Chatbot_2">
+          <text>"CONVERSACAO_INICIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Chatbot_3">
+          <text>"base_conhecimento,modelo_nlp"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

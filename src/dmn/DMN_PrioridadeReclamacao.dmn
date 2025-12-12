@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_PrioridadeReclamacao"
+             name="Priorização de Reclamações"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_PrioridadeReclamacao" name="Determinar Prioridade de Reclamação">
+    <decisionTable id="DecisionTable_PrioridadeReclamacao" hitPolicy="FIRST">
+      <input id="Input_TipoReclamacao" label="Tipo de Reclamação" camunda:inputVariable="tipoReclamacao">
+        <inputExpression id="InputExpression_TipoReclamacao" typeRef="string">
+          <text>tipoReclamacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ImpactoSaude" label="Há Impacto na Saúde" camunda:inputVariable="impactoSaude">
+        <inputExpression id="InputExpression_ImpactoSaude" typeRef="boolean">
+          <text>impactoSaude</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_CanalOrigem" label="Canal de Origem" camunda:inputVariable="canalOrigem">
+        <inputExpression id="InputExpression_CanalOrigem" typeRef="string">
+          <text>canalOrigem</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ReclamacaoRepetida" label="Reclamação Repetida" camunda:inputVariable="reclamacaoRepetida">
+        <inputExpression id="InputExpression_ReclamacaoRepetida" typeRef="boolean">
+          <text>reclamacaoRepetida</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ClassificacaoRisco" label="Classificação de Risco do Beneficiário" camunda:inputVariable="classificacaoRisco">
+        <inputExpression id="InputExpression_ClassificacaoRisco" typeRef="string">
+          <text>classificacaoRisco</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TempoAbertura" label="Tempo desde Abertura (horas)" camunda:inputVariable="tempoAbertura">
+        <inputExpression id="InputExpression_TempoAbertura" typeRef="integer">
+          <text>tempoAbertura</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_Prioridade" label="Prioridade" name="prioridadeReclamacao" typeRef="string"/>
+      <output id="Output_SLA" label="SLA de Resolução (horas)" name="slaResolucao" typeRef="integer"/>
+      <output id="Output_Responsavel" label="Responsável" name="responsavelReclamacao" typeRef="string"/>
+
+      <!-- PRIORIDADE CRÍTICA -->
+      <rule id="Rule_Critica_Saude_Alto_Risco">
+        <description>Impacto na saúde + alto risco - CRÍTICA</description>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_5">
+          <text>"ALTO", "COMPLEXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_Saude_Alto_Risco_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Critica_Saude_Alto_Risco_1">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_Saude_Alto_Risco_2">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_Saude_Alto_Risco_3">
+          <text>"GERENTE_MEDICO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Critica_ANS_Orgao_Regulador">
+        <description>Reclamação em órgãos reguladores - CRÍTICA</description>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_1">
+          <text>"ANS", "PROCON", "MINISTÉRIO PÚBLICO", "DEFENSORIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_3">
+          <text>"ANS", "PROCON", "ORGAO_EXTERNO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_ANS_Orgao_Regulador_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Critica_ANS_Orgao_Regulador_1">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_ANS_Orgao_Regulador_2">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_ANS_Orgao_Regulador_3">
+          <text>"DIRETORIA_OUVIDORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Critica_Negacao_Urgente">
+        <description>Negação de procedimento urgente - CRÍTICA</description>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_1">
+          <text>"NEGACAO_AUTORIZACAO", "NEGATIVA_COBERTURA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Critica_Negacao_Urgente_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Critica_Negacao_Urgente_1">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_Negacao_Urgente_2">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Critica_Negacao_Urgente_3">
+          <text>"AUDITOR_MEDICO_SENIOR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PRIORIDADE ALTA -->
+      <rule id="Rule_Alta_Reclamacao_Repetida">
+        <description>Reclamação repetida não resolvida - ALTA</description>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Reclamacao_Repetida_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_Reclamacao_Repetida_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Reclamacao_Repetida_2">
+          <text>8</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Reclamacao_Repetida_3">
+          <text>"COORDENADOR_OUVIDORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alta_Atendimento_Rede">
+        <description>Reclamação sobre atendimento na rede - ALTA</description>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_1">
+          <text>"ATENDIMENTO_REDE", "PRESTADOR", "HOSPITAL", "CLINICA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Atendimento_Rede_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_Atendimento_Rede_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Atendimento_Rede_2">
+          <text>12</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Atendimento_Rede_3">
+          <text>"GESTOR_REDE_CREDENCIADA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alta_Impacto_Saude">
+        <description>Impacto na saúde - ALTA</description>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Impacto_Saude_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alta_Impacto_Saude_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Impacto_Saude_2">
+          <text>8</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Impacto_Saude_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Alta_Tempo_Excedido">
+        <description>Tempo de abertura excedido (&gt;48h) - ALTA</description>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alta_Tempo_Excedido_6">
+          <text>&gt; 48</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Alta_Tempo_Excedido_1">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Tempo_Excedido_2">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alta_Tempo_Excedido_3">
+          <text>"COORDENADOR_OUVIDORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PRIORIDADE MÉDIA -->
+      <rule id="Rule_Media_Faturamento">
+        <description>Reclamação financeira/faturamento - MÉDIA</description>
+        <inputEntry id="InputEntry_Media_Faturamento_1">
+          <text>"FATURAMENTO", "COBRANCA", "BOLETO", "PAGAMENTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Media_Faturamento_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Faturamento_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Faturamento_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Faturamento_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Faturamento_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Media_Faturamento_1">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_Faturamento_2">
+          <text>24</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_Faturamento_3">
+          <text>"ANALISTA_FINANCEIRO"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Media_Agendamento">
+        <description>Problemas com agendamento - MÉDIA</description>
+        <inputEntry id="InputEntry_Media_Agendamento_1">
+          <text>"AGENDAMENTO", "CONSULTA", "EXAME", "MARCACAO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Media_Agendamento_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Agendamento_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Agendamento_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Agendamento_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Media_Agendamento_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Media_Agendamento_1">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_Agendamento_2">
+          <text>24</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Media_Agendamento_3">
+          <text>"ATENDENTE_OUVIDORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PRIORIDADE BAIXA -->
+      <rule id="Rule_Baixa_Informacional">
+        <description>Reclamação informacional - BAIXA</description>
+        <inputEntry id="InputEntry_Baixa_Informacional_1">
+          <text>"INFORMACAO", "DUVIDA", "CADASTRO", "DOCUMENTACAO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Baixa_Informacional_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Informacional_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Informacional_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Informacional_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Informacional_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Baixa_Informacional_1">
+          <text>"BAIXA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixa_Informacional_2">
+          <text>48</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixa_Informacional_3">
+          <text>"ATENDENTE_BACKOFFICE"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Baixa_Sugestao">
+        <description>Sugestão ou elogio - BAIXA</description>
+        <inputEntry id="InputEntry_Baixa_Sugestao_1">
+          <text>"SUGESTAO", "ELOGIO", "FEEDBACK_POSITIVO", "MELHORIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Baixa_Sugestao_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Sugestao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Sugestao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Sugestao_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixa_Sugestao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Baixa_Sugestao_1">
+          <text>"BAIXA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixa_Sugestao_2">
+          <text>72</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixa_Sugestao_3">
+          <text>"QUALIDADE"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- DEFAULT -->
+      <rule id="Rule_Default_Media">
+        <description>Reclamação padrão - MÉDIA</description>
+        <inputEntry id="InputEntry_Default_Media_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Media_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Media_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Media_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Media_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Media_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Default_Media_1">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Media_2">
+          <text>24</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Media_3">
+          <text>"ATENDENTE_OUVIDORIA"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_GatilhosProativos"
+             name="Gatilhos Proativos"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_GatilhosProativos" name="Identificar Gatilhos de Ações Proativas">
+    <decisionTable id="DecisionTable_GatilhosProativos" hitPolicy="COLLECT">
+      <input id="Input_DiasUltimoCheckup" label="Dias desde último check-up" camunda:inputVariable="diasUltimoCheckup">
+        <inputExpression id="InputExpression_DiasUltimoCheckup" typeRef="integer">
+          <text>diasUltimoCheckup</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_DiasRestantesMedicamento" label="Dias restantes medicamento" camunda:inputVariable="diasRestantesMedicamento">
+        <inputExpression id="InputExpression_DiasRestantesMedicamento" typeRef="integer">
+          <text>diasRestantesMedicamento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ExameAlteradoSemRetorno" label="Exame alterado sem retorno" camunda:inputVariable="exameAlteradoSemRetorno">
+        <inputExpression id="InputExpression_ExameAlteradoSemRetorno" typeRef="boolean">
+          <text>exameAlteradoSemRetorno</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ScorePredicaoInternacao" label="Score predição internação" camunda:inputVariable="scorePredicaoInternacao">
+        <inputExpression id="InputExpression_ScorePredicaoInternacao" typeRef="integer">
+          <text>scorePredicaoInternacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TaxaAdesaoTratamento" label="Taxa adesão tratamento (%)" camunda:inputVariable="taxaAdesaoTratamento">
+        <inputExpression id="InputExpression_TaxaAdesaoTratamento" typeRef="integer">
+          <text>taxaAdesaoTratamento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TemCondicaoCronica" label="Tem condição crônica" camunda:inputVariable="temCondicaoCronica">
+        <inputExpression id="InputExpression_TemCondicaoCronica" typeRef="boolean">
+          <text>temCondicaoCronica</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_DiasSemConsulta" label="Dias sem consulta" camunda:inputVariable="diasSemConsulta">
+        <inputExpression id="InputExpression_DiasSemConsulta" typeRef="integer">
+          <text>diasSemConsulta</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_DiasAposAlta" label="Dias após alta hospitalar" camunda:inputVariable="diasAposAlta">
+        <inputExpression id="InputExpression_DiasAposAlta" typeRef="integer">
+          <text>diasAposAlta</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Gestante" label="É gestante" camunda:inputVariable="gestante">
+        <inputExpression id="InputExpression_Gestante" typeRef="boolean">
+          <text>gestante</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_SentimentoNegativoRecente" label="Sentimento negativo recente" camunda:inputVariable="sentimentoNegativoRecente">
+        <inputExpression id="InputExpression_SentimentoNegativoRecente" typeRef="boolean">
+          <text>sentimentoNegativoRecente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_DiasVencimentoCarencia" label="Dias para vencimento carência" camunda:inputVariable="diasVencimentoCarencia">
+        <inputExpression id="InputExpression_DiasVencimentoCarencia" typeRef="integer">
+          <text>diasVencimentoCarencia</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_GatilhoId" label="ID do Gatilho" name="gatilhoId" typeRef="string"/>
+      <output id="Output_Prioridade" label="Prioridade" name="prioridade" typeRef="string"/>
+      <output id="Output_AcaoSugerida" label="Ação Sugerida" name="acaoSugerida" typeRef="string"/>
+
+      <!-- GAT-001: Check-up Pendente -->
+      <rule id="Rule_GAT001">
+        <description>Check-up anual pendente</description>
+        <inputEntry id="InputEntry_GAT001_1">
+          <text>&gt;= 365</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT001_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT001_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT001_1">
+          <text>"GAT-001"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT001_2">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT001_3">
+          <text>"Enviar lembrete de check-up + oferta de agendamento"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-002: Medicamento Acabando -->
+      <rule id="Rule_GAT002">
+        <description>Medicamento acabando em menos de 7 dias</description>
+        <inputEntry id="InputEntry_GAT002_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_2">
+          <text>&lt; 7</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT002_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT002_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT002_1">
+          <text>"GAT-002"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT002_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT002_3">
+          <text>"Lembrete renovação receita + facilitação processo"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-003: Exame Alterado sem Retorno -->
+      <rule id="Rule_GAT003">
+        <description>Exame alterado sem consulta de retorno agendada</description>
+        <inputEntry id="InputEntry_GAT003_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT003_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT003_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT003_1">
+          <text>"GAT-003"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT003_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT003_3">
+          <text>"Alerta + facilitação agendamento consulta de retorno"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-004: Risco de Internação -->
+      <rule id="Rule_GAT004">
+        <description>Alto score de predição de internação</description>
+        <inputEntry id="InputEntry_GAT004_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_4">
+          <text>&gt; 70</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT004_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT004_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT004_1">
+          <text>"GAT-004"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT004_2">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT004_3">
+          <text>"Alerta navegador + contato proativo imediato"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-005: Baixa Adesão ao Tratamento -->
+      <rule id="Rule_GAT005">
+        <description>Taxa de adesão ao tratamento abaixo de 60%</description>
+        <inputEntry id="InputEntry_GAT005_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_5">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT005_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT005_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT005_1">
+          <text>"GAT-005"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT005_2">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT005_3">
+          <text>"Nudge comportamental + identificação de barreiras"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-008: Gap in Care -->
+      <rule id="Rule_GAT008">
+        <description>Condição crônica sem consulta há mais de 90 dias</description>
+        <inputEntry id="InputEntry_GAT008_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_6">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT008_7">
+          <text>&gt; 90</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT008_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT008_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT008_1">
+          <text>"GAT-008"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT008_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT008_3">
+          <text>"Alerta gap in care + agendamento facilitado"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-009: Pós-Alta Hospitalar -->
+      <rule id="Rule_GAT009">
+        <description>Alta hospitalar recente sem follow-up</description>
+        <inputEntry id="InputEntry_GAT009_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_8">
+          <text>[1..30]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT009_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT009_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT009_1">
+          <text>"GAT-009"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT009_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT009_3">
+          <text>"Contato navegador para acompanhamento pós-alta"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-010: Gestante sem Pré-natal -->
+      <rule id="Rule_GAT010">
+        <description>Gestante identificada sem pré-natal agendado</description>
+        <inputEntry id="InputEntry_GAT010_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_9">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT010_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT010_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT010_1">
+          <text>"GAT-010"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT010_2">
+          <text>"CRITICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT010_3">
+          <text>"Alerta urgente + coordenação de pré-natal"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-011: Insatisfação Detectada -->
+      <rule id="Rule_GAT011">
+        <description>Sentimento negativo em interações recentes</description>
+        <inputEntry id="InputEntry_GAT011_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT011_10">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GAT011_11"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_GAT011_1">
+          <text>"GAT-011"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT011_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT011_3">
+          <text>"Contato de recuperação de satisfação"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- GAT-012: Vencimento de Carência -->
+      <rule id="Rule_GAT012">
+        <description>Carência vence em 7 dias</description>
+        <inputEntry id="InputEntry_GAT012_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_7"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_8"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_9"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_10"><text></text></inputEntry>
+        <inputEntry id="InputEntry_GAT012_11">
+          <text>&lt;= 7</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_GAT012_1">
+          <text>"GAT-012"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT012_2">
+          <text>"MEDIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GAT012_3">
+          <text>"Informar liberação de cobertura + benefícios disponíveis"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

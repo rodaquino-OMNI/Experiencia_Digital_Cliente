@@ -109,6 +109,45 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- WireMock for API mocking -->
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>2.35.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Boot Starter for Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Kafka for Testing -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <version>3.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Data Redis for Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Jakarta Annotations API -->
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
+
         <!-- H2 Database for testing -->
         <dependency>
             <groupId>com.h2database</groupId>

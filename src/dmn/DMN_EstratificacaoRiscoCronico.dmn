@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_EstratificacaoRiscoCronico"
+             name="Estratificação de Risco para Doenças Crônicas"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_EstratificacaoRiscoCronico" name="Estratificar Risco de Doenças Crônicas">
+    <decisionTable id="DecisionTable_EstratificacaoRiscoCronico" hitPolicy="COLLECT" aggregation="SUM">
+      <input id="Input_DoencasCronicas" label="Quantidade de Doenças Crônicas" camunda:inputVariable="qtdDoencasCronicas">
+        <inputExpression id="InputExpression_DoencasCronicas" typeRef="integer">
+          <text>qtdDoencasCronicas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Adesao" label="Taxa de Adesão ao Tratamento (%)" camunda:inputVariable="taxaAdesao">
+        <inputExpression id="InputExpression_Adesao" typeRef="double">
+          <text>taxaAdesao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ControleClinico" label="Parâmetros Clínicos Controlados" camunda:inputVariable="parametrosControlados">
+        <inputExpression id="InputExpression_ControleClinico" typeRef="boolean">
+          <text>parametrosControlados</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Internacoes" label="Internações nos últimos 12 meses" camunda:inputVariable="internacoesAno">
+        <inputExpression id="InputExpression_Internacoes" typeRef="integer">
+          <text>internacoesAno</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ProntoSocorro" label="Idas ao PS nos últimos 6 meses" camunda:inputVariable="idasPS">
+        <inputExpression id="InputExpression_ProntoSocorro" typeRef="integer">
+          <text>idasPS</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_IdadeAvancada" label="Idade &gt; 65 anos" camunda:inputVariable="idadeAvancada">
+        <inputExpression id="InputExpression_IdadeAvancada" typeRef="boolean">
+          <text>idadeAvancada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_SuporteRede" label="Tem Rede de Suporte" camunda:inputVariable="temSuporteRede">
+        <inputExpression id="InputExpression_SuporteRede" typeRef="boolean">
+          <text>temSuporteRede</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_ScoreRiscoCronico" label="Score de Risco Crônico" name="scoreRiscoCronicoParcial" typeRef="integer"/>
+
+      <!-- Múltiplas Comorbidades -->
+      <rule id="Rule_Comorbidades_Baixo">
+        <description>1 doença crônica</description>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_1">
+          <text>1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Baixo_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_Baixo">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Comorbidades_Moderado">
+        <description>2-3 doenças crônicas</description>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_1">
+          <text>[2..3]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Moderado_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_Moderado">
+          <text>25</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Comorbidades_Alto">
+        <description>4 ou mais doenças crônicas</description>
+        <inputEntry id="InputEntry_Comorbidades_Alto_1">
+          <text>&gt;= 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Comorbidades_Alto_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Comorbidades_Alto">
+          <text>40</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Adesão ao Tratamento -->
+      <rule id="Rule_Adesao_Boa">
+        <description>Boa adesão (≥80%)</description>
+        <inputEntry id="InputEntry_Adesao_Boa_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_2">
+          <text>&gt;= 80</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Boa_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Adesao_Boa">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Adesao_Moderada">
+        <description>Adesão moderada (50-79%)</description>
+        <inputEntry id="InputEntry_Adesao_Moderada_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_2">
+          <text>[50..79]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Moderada_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Adesao_Moderada">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Adesao_Baixa">
+        <description>Baixa adesão (&lt;50%)</description>
+        <inputEntry id="InputEntry_Adesao_Baixa_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_2">
+          <text>&lt; 50</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Adesao_Baixa_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Adesao_Baixa">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Controle Clínico -->
+      <rule id="Rule_Controle_Descompensado">
+        <description>Parâmetros clínicos descompensados</description>
+        <inputEntry id="InputEntry_Controle_Descompensado_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Controle_Descompensado_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Controle_Descompensado">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Internações Recentes -->
+      <rule id="Rule_Internacoes_Multiplas">
+        <description>2 ou mais internações no ano</description>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_4">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacoes_Multiplas_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Internacoes_Multiplas">
+          <text>35</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Internacao_Unica">
+        <description>1 internação no ano</description>
+        <inputEntry id="InputEntry_Internacao_Unica_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_4">
+          <text>1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Internacao_Unica_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Internacao_Unica">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Pronto Socorro Frequente -->
+      <rule id="Rule_PS_Frequente">
+        <description>3+ idas ao PS em 6 meses</description>
+        <inputEntry id="InputEntry_PS_Frequente_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_5">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Frequente_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_PS_Frequente">
+          <text>25</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_PS_Moderado">
+        <description>1-2 idas ao PS em 6 meses</description>
+        <inputEntry id="InputEntry_PS_Moderado_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_5">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_PS_Moderado_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_PS_Moderado">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Idade Avançada -->
+      <rule id="Rule_IdadeAvancada">
+        <description>Idade &gt; 65 anos</description>
+        <inputEntry id="InputEntry_IdadeAvancada_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_6">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_IdadeAvancada_7"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_IdadeAvancada">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Falta de Suporte Social -->
+      <rule id="Rule_SemSuporte">
+        <description>Sem rede de suporte social</description>
+        <inputEntry id="InputEntry_SemSuporte_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_6"><text></text></inputEntry>
+        <inputEntry id="InputEntry_SemSuporte_7">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_SemSuporte">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="DMN_ClassificacaoRiscoCronico" name="Classificar Risco de Doenças Crônicas">
+    <informationRequirement id="InfoReq_RiscoCronico">
+      <requiredDecision href="#DMN_EstratificacaoRiscoCronico"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_ClassificacaoRiscoCronico" hitPolicy="FIRST">
+      <input id="Input_ScoreRiscoCronico" label="Score de Risco Crônico">
+        <inputExpression id="InputExpression_ScoreRiscoCronico" typeRef="integer">
+          <text>scoreRiscoCronico</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_NivelRiscoCronico" label="Nível de Risco Crônico" name="nivelRiscoCronico" typeRef="string"/>
+      <output id="Output_Intervencao" label="Tipo de Intervenção" name="intervencaoRecomendada" typeRef="string"/>
+      <output id="Output_FrequenciaMonitoramento" label="Frequência de Monitoramento (dias)" name="frequenciaMonitoramento" typeRef="integer"/>
+
+      <rule id="Rule_Risco_Muito_Alto">
+        <description>Risco muito alto - gestão intensiva</description>
+        <inputEntry id="InputEntry_Risco_Muito_Alto">
+          <text>&gt; 100</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Risco_Muito_Alto_1">
+          <text>"MUITO_ALTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Muito_Alto_2">
+          <text>"GESTAO_INTENSIVA_MULTIDISCIPLINAR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Muito_Alto_3">
+          <text>7</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Risco_Alto">
+        <description>Risco alto - programa estruturado</description>
+        <inputEntry id="InputEntry_Risco_Alto">
+          <text>[71..100]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Risco_Alto_1">
+          <text>"ALTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Alto_2">
+          <text>"PROGRAMA_GESTAO_CRONICOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Alto_3">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Risco_Moderado">
+        <description>Risco moderado - monitoramento ativo</description>
+        <inputEntry id="InputEntry_Risco_Moderado">
+          <text>[41..70]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Risco_Moderado_1">
+          <text>"MODERADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Moderado_2">
+          <text>"MONITORAMENTO_ATIVO_PERIODICO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Moderado_3">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Risco_Baixo">
+        <description>Risco baixo - educação e suporte</description>
+        <inputEntry id="InputEntry_Risco_Baixo">
+          <text>[0..40]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Risco_Baixo_1">
+          <text>"BAIXO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Baixo_2">
+          <text>"EDUCACAO_SAUDE_AUTOCUIDADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Risco_Baixo_3">
+          <text>90</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

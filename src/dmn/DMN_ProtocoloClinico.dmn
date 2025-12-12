@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_ProtocoloClinico"
+             name="Validação de Protocolos Clínicos"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_ProtocoloClinico" name="Validar Aderência a Protocolo Clínico">
+    <decisionTable id="DecisionTable_ProtocoloClinico" hitPolicy="FIRST">
+      <input id="Input_TipoProcedimento" label="Tipo de Procedimento" camunda:inputVariable="tipoProcedimento">
+        <inputExpression id="InputExpression_TipoProcedimento" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Diagnostico" label="Diagnóstico (CID-10)" camunda:inputVariable="cid10">
+        <inputExpression id="InputExpression_Diagnostico" typeRef="string">
+          <text>cid10</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TratamentosPrevios" label="Tratamentos Conservadores Realizados" camunda:inputVariable="tratamentosPrevios">
+        <inputExpression id="InputExpression_TratamentosPrevios" typeRef="boolean">
+          <text>tratamentosPrevios</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TempoTratamento" label="Tempo de Tratamento Conservador (meses)" camunda:inputVariable="tempoTratamento">
+        <inputExpression id="InputExpression_TempoTratamento" typeRef="integer">
+          <text>tempoTratamento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ExamesComplementares" label="Exames Complementares Realizados" camunda:inputVariable="examesComplementares">
+        <inputExpression id="InputExpression_ExamesComplementares" typeRef="boolean">
+          <text>examesComplementares</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_IndicadorGravidade" label="Indicador de Gravidade (%)" camunda:inputVariable="indicadorGravidade">
+        <inputExpression id="InputExpression_IndicadorGravidade" typeRef="integer">
+          <text>indicadorGravidade</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_AtendeProtocolo" label="Atende Protocolo" name="atendeProtocolo" typeRef="boolean"/>
+      <output id="Output_JustificativaNaoAderencia" label="Justificativa" name="justificativaNaoAderencia" typeRef="string"/>
+      <output id="Output_AcaoNecessaria" label="Ação Necessária" name="acaoNecessaria" typeRef="string"/>
+
+      <!-- CIRURGIAS ORTOPÉDICAS -->
+      <rule id="Rule_Ortopedia_Atende">
+        <description>Cirurgia ortopédica - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Ortopedia_Atende_1">
+          <text>"CIRURGIA_ORTOPEDICA", "ARTROPLASTIA", "ARTROSCOPIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_Atende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_Atende_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_Atende_4">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_Atende_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_Atende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_Atende_2">
+          <text>"PROTOCOLO_ATENDIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_Atende_3">
+          <text>"APROVAR_AUTOMATICAMENTE"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Ortopedia_NaoAtende_Tempo">
+        <description>Cirurgia ortopédica - Tempo insuficiente de tratamento conservador</description>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_1">
+          <text>"CIRURGIA_ORTOPEDICA", "ARTROPLASTIA", "ARTROSCOPIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_4">
+          <text>&lt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Tempo_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Tempo_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Tempo_2">
+          <text>"TEMPO_INSUFICIENTE_TRATAMENTO_CONSERVADOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Tempo_3">
+          <text>"AUDITORIA_MEDICA_OBRIGATORIA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Ortopedia_NaoAtende_Exames">
+        <description>Cirurgia ortopédica - Faltam exames complementares</description>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_1">
+          <text>"CIRURGIA_ORTOPEDICA", "ARTROPLASTIA", "ARTROSCOPIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_5">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Ortopedia_NaoAtende_Exames_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Exames_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Exames_2">
+          <text>"EXAMES_COMPLEMENTARES_OBRIGATORIOS_AUSENTES"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Ortopedia_NaoAtende_Exames_3">
+          <text>"SOLICITAR_EXAMES_COMPLEMENTARES"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PROCEDIMENTOS ONCOLÓGICOS -->
+      <rule id="Rule_Oncologia_Atende">
+        <description>Tratamento oncológico - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Oncologia_Atende_1">
+          <text>"QUIMIOTERAPIA", "RADIOTERAPIA", "CIRURGIA_ONCOLOGICA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Oncologia_Atende_2">
+          <text>starts with(cid10, "C")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Oncologia_Atende_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Oncologia_Atende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Oncologia_Atende_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Oncologia_Atende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Oncologia_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Oncologia_Atende_2">
+          <text>"PROTOCOLO_ONCOLOGICO_ATENDIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Oncologia_Atende_3">
+          <text>"APROVAR_PRIORITARIAMENTE"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PROCEDIMENTOS CARDIOVASCULARES -->
+      <rule id="Rule_Cardio_Cateterismo_Atende">
+        <description>Cateterismo cardíaco - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_1">
+          <text>"CATETERISMO", "ANGIOPLASTIA", "STENT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_2">
+          <text>"I20", "I21", "I25"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_Atende_6">
+          <text>&gt;= 70</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_Atende_2">
+          <text>"PROTOCOLO_CARDIOLOGICO_ATENDIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_Atende_3">
+          <text>"APROVAR_URGENTEMENTE"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Cardio_Cateterismo_NaoAtende">
+        <description>Cateterismo cardíaco - Gravidade insuficiente</description>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_1">
+          <text>"CATETERISMO", "ANGIOPLASTIA", "STENT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_Cateterismo_NaoAtende_6">
+          <text>&lt; 70</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_NaoAtende_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_NaoAtende_2">
+          <text>"INDICADOR_GRAVIDADE_INSUFICIENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Cardio_Cateterismo_NaoAtende_3">
+          <text>"AUDITORIA_CARDIOLOGISTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- CIRURGIAS BARIÁTRICAS -->
+      <rule id="Rule_Bariatrica_Atende">
+        <description>Cirurgia bariátrica - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Bariatrica_Atende_1">
+          <text>"CIRURGIA_BARIATRICA", "GASTROPLASTIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_Atende_2">
+          <text>"E66"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_Atende_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_Atende_4">
+          <text>&gt;= 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_Atende_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_Atende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_Atende_2">
+          <text>"PROTOCOLO_BARIATRICA_ATENDIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_Atende_3">
+          <text>"APROVAR_COM_AVALIACAO_MULTIDISCIPLINAR"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Bariatrica_NaoAtende">
+        <description>Cirurgia bariátrica - Tempo insuficiente</description>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_1">
+          <text>"CIRURGIA_BARIATRICA", "GASTROPLASTIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_4">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Bariatrica_NaoAtende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_NaoAtende_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_NaoAtende_2">
+          <text>"TEMPO_MINIMO_TRATAMENTO_CLINICO_NAO_CUMPRIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bariatrica_NaoAtende_3">
+          <text>"SOLICITAR_CONTINUIDADE_TRATAMENTO_CLINICO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RESSONÂNCIA E TOMOGRAFIA -->
+      <rule id="Rule_Imagem_Alta_Complexidade_Atende">
+        <description>Exames de imagem alta complexidade - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_1">
+          <text>"RESSONANCIA", "TOMOGRAFIA", "PET_SCAN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_Atende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_Atende_2">
+          <text>"EXAMES_PREVIOS_REALIZADOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_Atende_3">
+          <text>"APROVAR_AUTOMATICAMENTE"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Imagem_Alta_Complexidade_NaoAtende">
+        <description>Exames de imagem alta complexidade - Faltam exames prévios</description>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_1">
+          <text>"RESSONANCIA", "TOMOGRAFIA", "PET_SCAN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Imagem_Alta_Complexidade_NaoAtende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_NaoAtende_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_NaoAtende_2">
+          <text>"EXAMES_BASICOS_NAO_REALIZADOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Imagem_Alta_Complexidade_NaoAtende_3">
+          <text>"SOLICITAR_EXAMES_BASICOS_PRIMEIRO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FISIOTERAPIA -->
+      <rule id="Rule_Fisioterapia_Atende">
+        <description>Fisioterapia - Protocolo atendido</description>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_1">
+          <text>"FISIOTERAPIA", "REABILITACAO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fisioterapia_Atende_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Fisioterapia_Atende_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fisioterapia_Atende_2">
+          <text>"INDICACAO_MEDICA_ADEQUADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fisioterapia_Atende_3">
+          <text>"APROVAR_SESSOES_PROTOCOLO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- URGÊNCIA/EMERGÊNCIA - SEMPRE APROVAR -->
+      <rule id="Rule_Urgencia_Emergencia">
+        <description>Urgência/Emergência - Aprovar imediatamente</description>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_1">
+          <text>"URGENCIA", "EMERGENCIA", "PRONTO_SOCORRO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Urgencia_Emergencia_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Urgencia_Emergencia_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Urgencia_Emergencia_2">
+          <text>"URGENCIA_EMERGENCIA_APROVACAO_AUTOMATICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Urgencia_Emergencia_3">
+          <text>"APROVAR_IMEDIATAMENTE"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- DEFAULT - Requer avaliação médica -->
+      <rule id="Rule_Default_Auditoria">
+        <description>Caso padrão - Requer auditoria médica</description>
+        <inputEntry id="InputEntry_Default_Auditoria_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Auditoria_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Auditoria_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Auditoria_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Auditoria_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_Auditoria_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Default_Auditoria_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Auditoria_2">
+          <text>"REQUER_AVALIACAO_MEDICA_DETALHADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Auditoria_3">
+          <text>"ENCAMINHAR_AUDITORIA_MEDICA"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

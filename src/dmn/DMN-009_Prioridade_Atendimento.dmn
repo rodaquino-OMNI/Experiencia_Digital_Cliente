@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_PrioridadeAtendimento"
+             name="Prioridade de Atendimento"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_PrioridadeAtendimento" name="Prioridade de Atendimento para Navegação">
+    <decisionTable id="DecisionTable_PrioridadeAtendimento" hitPolicy="FIRST">
+      <input id="Input_ClassificacaoRisco" label="Classificação de Risco" camunda:inputVariable="classificacaoRisco">
+        <inputExpression id="InputExpression_ClassificacaoRisco" typeRef="string">
+          <text>classificacaoRisco</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TipoJornada" label="Tipo de Jornada" camunda:inputVariable="tipoJornada">
+        <inputExpression id="InputExpression_TipoJornada" typeRef="string">
+          <text>tipoJornada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_DiasEmEspera" label="Dias em Espera" camunda:inputVariable="diasEmEspera">
+        <inputExpression id="InputExpression_DiasEmEspera" typeRef="integer">
+          <text>diasEmEspera</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TentativasContato" label="Tentativas de Contato" camunda:inputVariable="tentativasContato">
+        <inputExpression id="InputExpression_TentativasContato" typeRef="integer">
+          <text>tentativasContato</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ReclamacaoAberta" label="Reclamação Aberta" camunda:inputVariable="reclamacaoAberta">
+        <inputExpression id="InputExpression_ReclamacaoAberta" typeRef="boolean">
+          <text>reclamacaoAberta</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Vip" label="Beneficiário VIP" camunda:inputVariable="vip">
+        <inputExpression id="InputExpression_Vip" typeRef="boolean">
+          <text>vip</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_PrioridadeFinal" label="Prioridade Final" name="prioridadeFinal" typeRef="integer" />
+      <output id="Output_TempoMaximoEspera" label="Tempo Máximo de Espera (min)" name="tempoMaximoEspera" typeRef="integer" />
+      <output id="Output_NavegadorPreferencial" label="Navegador Preferencial" name="navegadorPreferencial" typeRef="string" />
+      <output id="Output_FlagUrgente" label="Flag Urgente" name="flagUrgente" typeRef="boolean" />
+
+      <!-- Regra 1: Classificação COMPLEXO - Máxima prioridade -->
+      <rule id="Rule_Complexo">
+        <inputEntry id="InputEntry_Complexo_1">
+          <text>"COMPLEXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Complexo_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Complexo_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Complexo_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Complexo_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Complexo_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Complexo_1">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Complexo_2">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Complexo_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Complexo_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 2: ALTO + INTERNACAO -->
+      <rule id="Rule_AltoInternacao">
+        <inputEntry id="InputEntry_AltoInternacao_1">
+          <text>"ALTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoInternacao_2">
+          <text>"INTERNACAO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoInternacao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoInternacao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoInternacao_5><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoInternacao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AltoInternacao_1">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoInternacao_2">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoInternacao_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoInternacao_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 3: ALTO + Reclamação Aberta -->
+      <rule id="Rule_AltoReclamacao">
+        <inputEntry id="InputEntry_AltoReclamacao_1">
+          <text>"ALTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoReclamacao_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoReclamacao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoReclamacao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoReclamacao_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoReclamacao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AltoReclamacao_1">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoReclamacao_2">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoReclamacao_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoReclamacao_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 4: ALTO + VIP -->
+      <rule id="Rule_AltoVip">
+        <inputEntry id="InputEntry_AltoVip_1">
+          <text>"ALTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoVip_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoVip_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoVip_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoVip_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoVip_6">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_AltoVip_1">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoVip_2">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoVip_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoVip_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 5: ALTO + >= 3 dias em espera -->
+      <rule id="Rule_AltoEspera">
+        <inputEntry id="InputEntry_AltoEspera_1">
+          <text>"ALTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoEspera_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoEspera_3">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoEspera_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoEspera_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoEspera_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AltoEspera_1">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoEspera_2">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoEspera_3">
+          <text>"NAVEGADOR_SENIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoEspera_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 6: ALTO (geral) -->
+      <rule id="Rule_Alto">
+        <inputEntry id="InputEntry_Alto_1">
+          <text>"ALTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Alto_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alto_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alto_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alto_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Alto_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Alto_1">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alto_2">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alto_3">
+          <text>"NAVEGADOR_PLENO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Alto_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 7: MODERADO + Reclamação -->
+      <rule id="Rule_ModeradoReclamacao">
+        <inputEntry id="InputEntry_ModeradoReclamacao_1">
+          <text>"MODERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ModeradoReclamacao_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoReclamacao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoReclamacao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoReclamacao_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ModeradoReclamacao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ModeradoReclamacao_1">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoReclamacao_2">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoReclamacao_3">
+          <text>"NAVEGADOR_PLENO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoReclamacao_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 8: MODERADO + VIP -->
+      <rule id="Rule_ModeradoVip">
+        <inputEntry id="InputEntry_ModeradoVip_1">
+          <text>"MODERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ModeradoVip_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoVip_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoVip_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoVip_5><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoVip_6">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_ModeradoVip_1">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoVip_2">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoVip_3">
+          <text>"NAVEGADOR_PLENO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoVip_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 9: MODERADO + >= 5 dias em espera -->
+      <rule id="Rule_ModeradoEspera">
+        <inputEntry id="InputEntry_ModeradoEspera_1">
+          <text>"MODERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ModeradoEspera_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoEspera_3">
+          <text>&gt;= 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ModeradoEspera_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoEspera_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ModeradoEspera_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ModeradoEspera_1">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoEspera_2">
+          <text>240</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoEspera_3">
+          <text>"NAVEGADOR_PLENO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ModeradoEspera_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 10: MODERADO (geral) -->
+      <rule id="Rule_Moderado">
+        <inputEntry id="InputEntry_Moderado_1">
+          <text>"MODERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Moderado_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Moderado_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Moderado_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Moderado_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Moderado_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Moderado_1">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Moderado_2">
+          <text>480</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Moderado_3">
+          <text>"NAVEGADOR_JUNIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Moderado_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 11: BAIXO + Reclamação -->
+      <rule id="Rule_BaixoReclamacao">
+        <inputEntry id="InputEntry_BaixoReclamacao_1">
+          <text>"BAIXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BaixoReclamacao_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BaixoReclamacao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BaixoReclamacao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_BaixoReclamacao_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BaixoReclamacao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_BaixoReclamacao_1">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BaixoReclamacao_2">
+          <text>480</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BaixoReclamacao_3">
+          <text>"NAVEGADOR_JUNIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BaixoReclamacao_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 12: BAIXO (geral) -->
+      <rule id="Rule_Baixo">
+        <inputEntry id="InputEntry_Baixo_1">
+          <text>"BAIXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Baixo_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixo_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixo_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixo_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Baixo_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Baixo_1">
+          <text>7</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixo_2">
+          <text>1440</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixo_3">
+          <text>"NAVEGADOR_JUNIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Baixo_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

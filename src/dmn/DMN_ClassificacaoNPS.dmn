@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_ClassificacaoNPS"
+             name="Classificação NPS"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_ClassificacaoNPS" name="Classificar Resposta NPS">
+    <decisionTable id="DecisionTable_ClassificacaoNPS" hitPolicy="FIRST">
+      <input id="Input_Score" label="Score NPS (0-10)" camunda:inputVariable="scoreNPS">
+        <inputExpression id="InputExpression_Score" typeRef="integer">
+          <text>scoreNPS</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_Classificacao" label="Classificação NPS" name="classificacaoNPS" typeRef="string"/>
+      <output id="Output_AcaoRecomendada" label="Ação Recomendada" name="acaoRecomendada" typeRef="string"/>
+      <output id="Output_Prioridade" label="Prioridade de Contato" name="prioridadeContato" typeRef="string"/>
+
+      <!-- DETRATORES: Score 0-6 -->
+      <rule id="Rule_Detrator_Critico">
+        <description>Detratores críticos (0-3) - contato imediato</description>
+        <inputEntry id="InputEntry_Detrator_Critico">
+          <text>[0..3]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Detrator_Critico_1">
+          <text>"DETRATOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Detrator_Critico_2">
+          <text>"CONTATO_IMEDIATO_OUVIDORIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Detrator_Critico_3">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Detrator">
+        <description>Detratores (4-6) - contato prioritário</description>
+        <inputEntry id="InputEntry_Detrator">
+          <text>[4..6]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Detrator_1">
+          <text>"DETRATOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Detrator_2">
+          <text>"CONTATO_PRIORIDADE_ALTA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Detrator_3">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- NEUTROS: Score 7-8 -->
+      <rule id="Rule_Neutro">
+        <description>Neutros (7-8) - acompanhamento padrão</description>
+        <inputEntry id="InputEntry_Neutro">
+          <text>[7..8]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Neutro_1">
+          <text>"NEUTRO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Neutro_2">
+          <text>"ACOMPANHAMENTO_PADRAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Neutro_3">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- PROMOTORES: Score 9-10 -->
+      <rule id="Rule_Promotor">
+        <description>Promotores (9-10) - reconhecimento e programa de advocacy</description>
+        <inputEntry id="InputEntry_Promotor">
+          <text>[9..10]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Promotor_1">
+          <text>"PROMOTOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Promotor_2">
+          <text>"PROGRAMA_ADVOCACY_RECONHECIMENTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Promotor_3">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="DMN_RoteamentoNPS" name="Roteamento por Classificação NPS">
+    <informationRequirement id="InfoReq_NPS">
+      <requiredDecision href="#DMN_ClassificacaoNPS"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_RoteamentoNPS" hitPolicy="FIRST">
+      <input id="Input_ClassificacaoNPS" label="Classificação NPS">
+        <inputExpression id="InputExpression_ClassificacaoNPS" typeRef="string">
+          <text>classificacaoNPS</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_Destinatario" label="Destinatário" name="destinatarioNPS" typeRef="string"/>
+      <output id="Output_SLA" label="SLA de Resposta (horas)" name="slaRespostaNPS" typeRef="integer"/>
+
+      <rule id="Rule_Roteamento_Detrator">
+        <inputEntry id="InputEntry_Roteamento_Detrator">
+          <text>"DETRATOR"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Detrator_1">
+          <text>"OUVIDORIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Detrator_2">
+          <text>4</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Roteamento_Neutro">
+        <inputEntry id="InputEntry_Roteamento_Neutro">
+          <text>"NEUTRO"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Neutro_1">
+          <text>"RELACIONAMENTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Neutro_2">
+          <text>48</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Roteamento_Promotor">
+        <inputEntry id="InputEntry_Roteamento_Promotor">
+          <text>"PROMOTOR"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Promotor_1">
+          <text>"MARKETING"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Roteamento_Promotor_2">
+          <text>72</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

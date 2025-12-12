@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_RegrasAutorizacao"
+             name="Regras de Autorização"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_RegrasAutorizacao" name="Regras de Autorização de Procedimentos">
+    <decisionTable id="DecisionTable_RegrasAutorizacao" hitPolicy="FIRST">
+      <input id="Input_TipoProcedimento" label="Tipo de Procedimento" camunda:inputVariable="tipoProcedimento">
+        <inputExpression id="InputExpression_TipoProcedimento" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TempoCarencia" label="Dias desde adesão" camunda:inputVariable="diasDesdeAdesao">
+        <inputExpression id="InputExpression_TempoCarencia" typeRef="integer">
+          <text>diasDesdeAdesao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ValorProcedimento" label="Valor do Procedimento" camunda:inputVariable="valorProcedimento">
+        <inputExpression id="InputExpression_ValorProcedimento" typeRef="double">
+          <text>valorProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TemProtocoloClinico" label="Atende Protocolo Clínico" camunda:inputVariable="atendeProtocolo">
+        <inputExpression id="InputExpression_TemProtocoloClinico" typeRef="boolean">
+          <text>atendeProtocolo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_PrestadorRede" label="Prestador da Rede" camunda:inputVariable="prestadorRede">
+        <inputExpression id="InputExpression_PrestadorRede" typeRef="boolean">
+          <text>prestadorRede</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_Decisao" label="Decisão" name="decisaoAutorizacao" typeRef="string"/>
+      <output id="Output_Motivo" label="Motivo" name="motivoDecisao" typeRef="string"/>
+      <output id="Output_RequerAnalise" label="Requer Análise Técnica" name="requerAnaliseTecnica" typeRef="boolean"/>
+
+      <!-- Consultas simples -->
+      <rule id="Rule_ConsultaSimples">
+        <description>Consultas simples sempre aprovadas</description>
+        <inputEntry id="InputEntry_ConsultaSimples_1">
+          <text>"CONSULTA_CLINICO_GERAL", "CONSULTA_PEDIATRIA", "CONSULTA_GINECOLOGIA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ConsultaSimples_2">
+          <text>&gt; 0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ConsultaSimples_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ConsultaSimples_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ConsultaSimples_5">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_ConsultaSimples_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ConsultaSimples_2">
+          <text>"Procedimento de rotina coberto pelo plano"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ConsultaSimples_3">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Exames de rotina -->
+      <rule id="Rule_ExameRotina">
+        <description>Exames de rotina com protocolo atendido</description>
+        <inputEntry id="InputEntry_ExameRotina_1">
+          <text>"EXAME_LABORATORIAL", "RAIO_X", "ULTRASSOM"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ExameRotina_2">
+          <text>&gt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ExameRotina_3">
+          <text>&lt; 1000</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ExameRotina_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ExameRotina_5">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_ExameRotina_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ExameRotina_2">
+          <text>"Exame atende protocolo clínico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ExameRotina_3">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Procedimentos em carência -->
+      <rule id="Rule_Carencia">
+        <description>Procedimentos eletivos em período de carência</description>
+        <inputEntry id="InputEntry_Carencia_1">
+          <text>"CIRURGIA_ELETIVA", "PROCEDIMENTO_COMPLEXO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Carencia_2">
+          <text>&lt; 180</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Carencia_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Carencia_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Carencia_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Carencia_1">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Carencia_2">
+          <text>"Procedimento em período de carência (180 dias)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Carencia_3">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Procedimentos de alto custo -->
+      <rule id="Rule_AltoCusto_Protocolo">
+        <description>Alto custo mas atende protocolo</description>
+        <inputEntry id="InputEntry_AltoCusto_Protocolo_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_Protocolo_2">
+          <text>&gt; 180</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_Protocolo_3">
+          <text>&gt;= 10000</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_Protocolo_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_Protocolo_5">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_Protocolo_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_Protocolo_2">
+          <text>"Alto custo aprovado por protocolo clínico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_Protocolo_3">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_AltoCusto_SemProtocolo">
+        <description>Alto custo sem protocolo - requer análise</description>
+        <inputEntry id="InputEntry_AltoCusto_SemProtocolo_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_SemProtocolo_2">
+          <text>&gt; 180</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_SemProtocolo_3">
+          <text>&gt;= 10000</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_SemProtocolo_4">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AltoCusto_SemProtocolo_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_SemProtocolo_1">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_SemProtocolo_2">
+          <text>"Requer análise técnica - alto custo sem protocolo estabelecido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AltoCusto_SemProtocolo_3">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Prestador fora da rede -->
+      <rule id="Rule_ForaRede">
+        <description>Prestador fora da rede credenciada</description>
+        <inputEntry id="InputEntry_ForaRede_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ForaRede_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ForaRede_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ForaRede_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ForaRede_5">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_ForaRede_1">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ForaRede_2">
+          <text>"Prestador não pertence à rede credenciada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ForaRede_3">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Cirurgias eletivas -->
+      <rule id="Rule_CirurgiaEletiva">
+        <description>Cirurgias eletivas fora de carência com protocolo</description>
+        <inputEntry id="InputEntry_CirurgiaEletiva_1">
+          <text>"CIRURGIA_ELETIVA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CirurgiaEletiva_2">
+          <text>&gt;= 180</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CirurgiaEletiva_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_CirurgiaEletiva_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_CirurgiaEletiva_5">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_CirurgiaEletiva_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_CirurgiaEletiva_2">
+          <text>"Cirurgia atende protocolo e fora de carência"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_CirurgiaEletiva_3">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Default: análise técnica -->
+      <rule id="Rule_Default">
+        <description>Casos não cobertos por regras específicas</description>
+        <inputEntry id="InputEntry_Default_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_Default_5"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_Default_1">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_2">
+          <text>"Requer análise técnica especializada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_3">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

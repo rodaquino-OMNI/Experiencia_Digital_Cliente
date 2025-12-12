@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DMN_ElegibilidadePrograma"
+             name="Elegibilidade para Programa"
+             namespace="http://austa.com.br/dmn">
+
+  <decision id="DMN_ElegibilidadePrograma" name="Elegibilidade para Programas de Gestão de Crônicos">
+    <decisionTable id="DecisionTable_ElegibilidadePrograma" hitPolicy="COLLECT">
+      <input id="Input_CondicoesCronicas" label="Condições Crônicas" camunda:inputVariable="condicoesCronicas">
+        <inputExpression id="InputExpression_CondicoesCronicas" typeRef="list">
+          <text>condicoesCronicas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Idade" label="Idade" camunda:inputVariable="idade">
+        <inputExpression id="InputExpression_Idade" typeRef="integer">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ScoreRisco" label="Score de Risco" camunda:inputVariable="scoreRisco">
+        <inputExpression id="InputExpression_ScoreRisco" typeRef="integer">
+          <text>scoreRisco</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Gestante" label="Gestante" camunda:inputVariable="gestante">
+        <inputExpression id="InputExpression_Gestante" typeRef="boolean">
+          <text>gestante</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_InternacaoRecente" label="Internação Recente" camunda:inputVariable="internacaoRecente">
+        <inputExpression id="InputExpression_InternacaoRecente" typeRef="boolean">
+          <text>internacaoRecente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TemNavegadorAtribuido" label="Tem Navegador Atribuído" camunda:inputVariable="temNavegadorAtribuido">
+        <inputExpression id="InputExpression_TemNavegadorAtribuido" typeRef="boolean">
+          <text>temNavegadorAtribuido</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_ProgramasElegiveis" label="Programas Elegíveis" name="programasElegiveis" typeRef="list" />
+      <output id="Output_ProgramaPrioritario" label="Programa Prioritário" name="programaPrioritario" typeRef="string" />
+      <output id="Output_NivelIntensidade" label="Nível de Intensidade" name="nivelIntensidade" typeRef="string" />
+
+      <!-- Programa Diabetes -->
+      <rule id="Rule_ProgDiabetes">
+        <inputEntry id="InputEntry_ProgDiabetes_1">
+          <text>list contains(condicoesCronicas, "DIABETES")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgDiabetes_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDiabetes_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDiabetes_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDiabetes_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDiabetes_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgDiabetes_1">
+          <text>["PROG_DIABETES"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgDiabetes_2">
+          <text>"PROG_DIABETES"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgDiabetes_3">
+          <text>"MODERADO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Hipertensão -->
+      <rule id="Rule_ProgHipertensao">
+        <inputEntry id="InputEntry_ProgHipertensao_1">
+          <text>list contains(condicoesCronicas, "HIPERTENSAO")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgHipertensao_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgHipertensao_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgHipertensao_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgHipertensao_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgHipertensao_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgHipertensao_1">
+          <text>["PROG_HIPERTENSAO"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgHipertensao_2">
+          <text>"PROG_HIPERTENSAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgHipertensao_3">
+          <text>"LEVE"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa DPOC -->
+      <rule id="Rule_ProgDPOC">
+        <inputEntry id="InputEntry_ProgDPOC_1">
+          <text>list contains(condicoesCronicas, "DPOC")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgDPOC_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDPOC_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDPOC_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDPOC_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgDPOC_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgDPOC_1">
+          <text>["PROG_DPOC"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgDPOC_2">
+          <text>"PROG_DPOC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgDPOC_3">
+          <text>"INTENSIVO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa ICC -->
+      <rule id="Rule_ProgICC">
+        <inputEntry id="InputEntry_ProgICC_1">
+          <text>list contains(condicoesCronicas, "ICC")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgICC_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgICC_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgICC_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgICC_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgICC_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgICC_1">
+          <text>["PROG_ICC"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgICC_2">
+          <text>"PROG_ICC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgICC_3">
+          <text>"INTENSIVO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Asma -->
+      <rule id="Rule_ProgAsma">
+        <inputEntry id="InputEntry_ProgAsma_1">
+          <text>list contains(condicoesCronicas, "ASMA")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgAsma_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAsma_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAsma_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAsma_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAsma_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgAsma_1">
+          <text>["PROG_ASMA"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgAsma_2">
+          <text>"PROG_ASMA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgAsma_3">
+          <text>"MODERADO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Obesidade -->
+      <rule id="Rule_ProgObesidade">
+        <inputEntry id="InputEntry_ProgObesidade_1">
+          <text>list contains(condicoesCronicas, "OBESIDADE")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgObesidade_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgObesidade_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgObesidade_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgObesidade_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgObesidade_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgObesidade_1">
+          <text>["PROG_OBESIDADE"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgObesidade_2">
+          <text>"PROG_OBESIDADE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgObesidade_3">
+          <text>"LEVE"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Renal -->
+      <rule id="Rule_ProgRenal">
+        <inputEntry id="InputEntry_ProgRenal_1">
+          <text>list contains(condicoesCronicas, "DRC")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgRenal_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgRenal_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgRenal_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgRenal_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgRenal_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgRenal_1">
+          <text>["PROG_RENAL"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgRenal_2">
+          <text>"PROG_RENAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgRenal_3">
+          <text>"INTENSIVO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Gestante -->
+      <rule id="Rule_ProgGestante">
+        <inputEntry id="InputEntry_ProgGestante_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgGestante_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgGestante_3"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgGestante_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgGestante_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgGestante_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgGestante_1">
+          <text>["PROG_GESTANTE"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgGestante_2">
+          <text>"PROG_GESTANTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgGestante_3">
+          <text>"MODERADO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Idoso -->
+      <rule id="Rule_ProgIdoso">
+        <inputEntry id="InputEntry_ProgIdoso_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgIdoso_2">
+          <text>&gt;= 65</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgIdoso_3">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgIdoso_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgIdoso_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgIdoso_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgIdoso_1">
+          <text>["PROG_IDOSO"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgIdoso_2">
+          <text>"PROG_IDOSO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgIdoso_3">
+          <text>"MODERADO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Programa Alto Risco -->
+      <rule id="Rule_ProgAltoRisco">
+        <inputEntry id="InputEntry_ProgAltoRisco_1"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAltoRisco_2"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAltoRisco_3">
+          <text>&gt;= 70</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ProgAltoRisco_4"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAltoRisco_5"><text></text></inputEntry>
+        <inputEntry id="InputEntry_ProgAltoRisco_6"><text></text></inputEntry>
+        <outputEntry id="OutputEntry_ProgAltoRisco_1">
+          <text>["PROG_ALTO_RISCO"]</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgAltoRisco_2">
+          <text>"PROG_ALTO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ProgAltoRisco_3">
+          <text>"INTENSIVO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
